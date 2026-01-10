@@ -55,7 +55,8 @@ function TicketList() {
     description: '',
     type: 'Hardware',
     category: 'Laptop', // Default to first category of Hardware
-    priority: 'Low'
+    priority: 'Low',
+    assigned_agent: ''
   });
   const [editingTicket, setEditingTicket] = useState(null);
   
@@ -100,10 +101,14 @@ function TicketList() {
     setDrawerTab('DETAILS'); // Reset tab when ticket selection changes
   }, [selectedTicket]);
 
-  // Fetch Users when Edit Modal Opens
+  // Fetch Users when Edit Modal or Create Modal Opens
   useEffect(() => {
-    if (editingTicket) {
-      setUserSearchQuery(editingTicket.assigned_agent || '');
+    if (editingTicket || showCreateModal) {
+      if (editingTicket) {
+        setUserSearchQuery(editingTicket.assigned_agent || '');
+      } else {
+        setUserSearchQuery('');
+      }
       const loadUsers = async () => {
         try {
           const data = await fetchUsers();
@@ -115,7 +120,7 @@ function TicketList() {
       };
       loadUsers();
     }
-  }, [editingTicket]);
+  }, [editingTicket, showCreateModal]);
 
   // Filter Users
   useEffect(() => {
@@ -245,8 +250,10 @@ function TicketList() {
         description: '',
         type: 'Hardware',
         category: 'Laptop',
-        priority: 'Low'
+        priority: 'Low',
+        assigned_agent: ''
       });
+      setToast({ show: true, message: 'Ticket created successfully', type: 'success' });
     } catch (err) {
       alert('Failed to create ticket: ' + err.message);
     }
@@ -1534,6 +1541,50 @@ function TicketList() {
                                 <option value="Critical">Critical</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div className="mb-4 position-relative">
+                        <label className="form-label fw-bold text-secondary small text-uppercase">Assigned Agent</label>
+                        <input 
+                            type="text"
+                            name="assigned_agent"
+                            className="form-control bg-light border-0 shadow-none" 
+                            placeholder="Search by name or email..."
+                            value={userSearchQuery}
+                            onChange={(e) => {
+                                setUserSearchQuery(e.target.value);
+                                setShowUserDropdown(true);
+                            }}
+                            onFocus={() => setShowUserDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowUserDropdown(false), 200)}
+                        />
+                        {showUserDropdown && userSearchQuery && filteredUsers.length > 0 && (
+                            <ul className="list-group position-absolute w-100 shadow-sm" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+                                {filteredUsers.map((user, i) => (
+                                    <li 
+                                        key={i} 
+                                        className="list-group-item list-group-item-action cursor-pointer"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            const email = user.user_email || user.email || '';
+                                            console.log('Selected user:', user, 'Email:', email);
+                                            setNewTicket(prev => ({ ...prev, assigned_agent: email }));
+                                            setUserSearchQuery(email);
+                                            setShowUserDropdown(false);
+                                        }}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <span className="fw-medium">{user.username}</span>
+                                            <small className="text-muted">{user.user_email}</small>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        {!userSearchQuery && (
+                           <div className="form-text">Start typing to search for an agent.</div>
+                        )}
                     </div>
 
                     <div className="mb-4">

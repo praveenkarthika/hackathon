@@ -74,7 +74,7 @@ export const fetchTickets = async () => {
 
 export const createTicketApi = async (ticketData) => {
   return apiRequest('/create_ticket', {
-    method: 'POST',
+    method: 'PUT',
     body: JSON.stringify(ticketData),
   });
 };
