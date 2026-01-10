@@ -14,6 +14,10 @@ function UserList() {
   // Pagination State
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  
+  // Selection & Editing State
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
 
   // Fetch Data
   useEffect(() => {
@@ -127,6 +131,15 @@ function UserList() {
     }
   };
 
+  const handleUpdateUser = (updatedUser) => {
+    // Optimistic update
+    setUsers(prevUsers => prevUsers.map(u => 
+      u.user_id === updatedUser.user_id ? updatedUser : u
+    ));
+    setEditingUser(null);
+    // TODO: Call API to persist changes
+  };
+
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center min-vh-100">
@@ -146,6 +159,7 @@ function UserList() {
   }
 
   return (
+    <>
     <div className="container-fluid p-4 bg-light min-vh-100">
       <style>{`
         .approach-card {
@@ -223,6 +237,45 @@ function UserList() {
         .page-link.active {
           background-color: rgba(26, 27, 103, 0.867);
           border-color: rgba(26, 27, 103, 0.867);
+        }
+        .user-offcanvas {
+          box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05);
+          width: 480px !important;
+        }
+        .info-card {
+          background: #fff;
+          border-radius: 12px;
+          padding: 1.25rem;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          border: 1px solid #f1f5f9;
+        }
+        .info-label {
+          color: #64748b;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.025em;
+          margin-bottom: 0.35rem;
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+        }
+        .info-value {
+          color: rgba(26, 27, 103, 0.867);
+          font-size: 0.9375rem;
+          font-weight: 500;
+        }
+        .action-btn {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        .action-btn:hover {
+          background-color: #f1f5f9;
+          transform: translateY(-1px);
         }
       `}</style>
 
@@ -325,6 +378,7 @@ function UserList() {
                   <th onClick={() => handleSort('created_at')}>
                     Created {sort.key === 'created_at' && (sort.dir === 'asc' ? '↑' : '↓')}
                   </th>
+                  <th className="text-end pe-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -357,6 +411,24 @@ function UserList() {
                       </td>
                       <td>
                         {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="text-end pe-4">
+                        <div className="d-flex justify-content-end gap-1">
+                           <button 
+                            className="btn btn-link text-secondary p-0 action-btn rounded-circle" 
+                            onClick={() => setSelectedUser(user)}
+                            title="View Details"
+                          >
+                            <i className="bi bi-eye"></i>
+                          </button>
+                          <button 
+                            className="btn btn-link text-secondary p-0 action-btn rounded-circle" 
+                            onClick={() => setEditingUser(user)}
+                            title="Edit User"
+                          >
+                            <i className="bi bi-pencil"></i>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -397,7 +469,189 @@ function UserList() {
           )}
         </div>
       </div>
+
+      {/* Backdrop for Offcanvas */}
+      {selectedUser && <div className="offcanvas-backdrop fade show" onClick={() => setSelectedUser(null)}></div>}
+
+      {/* User Details Drawer (Offcanvas) */}
+      <div 
+        className={`offcanvas offcanvas-end user-offcanvas ${selectedUser ? 'show' : ''}`} 
+        tabIndex="-1" 
+        style={{ visibility: selectedUser ? 'visible' : 'hidden' }}
+      >
+        <div className="offcanvas-header border-bottom">
+          <h5 className="offcanvas-title fw-bold text-dark">User Details</h5>
+          <button type="button" className="btn-close" onClick={() => setSelectedUser(null)} aria-label="Close"></button>
+        </div>
+        <div className="offcanvas-body bg-light p-3">
+          {selectedUser && (
+            <div className="d-flex flex-column gap-3">
+               {/* Profile Card */}
+               <div className="info-card text-center py-4">
+                  <div className="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center mx-auto mb-3" style={{width: '80px', height: '80px', fontSize: '2rem'}}>
+                    {(selectedUser.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <h5 className="fw-bold text-dark mb-1">{selectedUser.name}</h5>
+                  <span className={`badge rounded-pill ${
+                      (selectedUser.role || '').toLowerCase().includes('admin') ? 'bg-danger-subtle text-danger' :
+                      (selectedUser.role || '').toLowerCase().includes('editor') ? 'bg-info-subtle text-info' :
+                      'bg-secondary-subtle text-secondary'
+                    }`}>
+                      {selectedUser.role}
+                  </span>
+               </div>
+
+               {/* General Info */}
+               <div className="info-card">
+                  <h6 className="fw-bold text-primary mb-3 small text-uppercase">
+                    <i className="bi bi-person-lines-fill me-2"></i>Contact Information
+                  </h6>
+                  <div className="d-flex flex-column gap-3">
+                    <div>
+                      <label className="info-label">User ID</label>
+                      <div className="info-value font-monospace text-dark">{selectedUser.user_id}</div>
+                    </div>
+                    <div>
+                      <label className="info-label">Email Address</label>
+                      <div className="info-value text-break">{selectedUser.email}</div>
+                      <div className="text-success small mt-1"><i className="bi bi-unlock me-1"></i>Unmasked for admin view</div>
+                    </div>
+                    <div>
+                      <label className="info-label">Status</label>
+                      <div>
+                        <span className={`badge rounded-pill ${selectedUser.status ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'}`}>
+                           {selectedUser.status ? 'Active' : 'Inactive'}
+                         </span>
+                      </div>
+                    </div>
+                  </div>
+               </div>
+
+               {/* Metadata */}
+               <div className="info-card">
+                  <h6 className="fw-bold text-primary mb-3 small text-uppercase">
+                    <i className="bi bi-clock-history me-2"></i>System Metadata
+                  </h6>
+                  <div className="row g-3">
+                    <div className="col-6">
+                      <label className="info-label">Created At</label>
+                      <div className="info-value small text-dark">
+                        {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : '-'}
+                      </div>
+                    </div>
+                    <div className="col-6">
+                      <label className="info-label">Last Login</label>
+                      <div className="info-value small text-dark">-</div>
+                    </div>
+                  </div>
+               </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1055 }} tabIndex="-1" role="dialog">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div className="modal-header border-bottom p-4 border-top border-4" style={{ borderColor: 'rgba(26, 27, 103, 0.867)', backgroundColor: 'rgba(26, 27, 103, 0.03)' }}>
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: 48, height: 48, backgroundColor: 'rgba(26, 27, 103, 0.867)' }}>
+                        <i className="bi bi-person-gear fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 className="modal-title fw-bold text-dark mb-1">Edit User</h5>
+                        <div className="text-secondary small d-flex align-items-center gap-2">
+                            <span className="badge bg-light text-secondary border">{editingUser.user_id}</span>
+                        </div>
+                    </div>
+                  </div>
+                  <button type="button" className="btn-close" onClick={() => setEditingUser(null)}></button>
+                </div>
+                <div className="modal-body p-4">
+                  <form onSubmit={(e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.target);
+                      const updated = {
+                        ...editingUser,
+                        name: formData.get('name'),
+                        email: formData.get('email'), // Allow editing email?
+                        role: formData.get('role'),
+                        status: formData.get('status') === 'true'
+                      };
+                      handleUpdateUser(updated);
+                    }}>
+                    
+                    <div className="mb-4">
+                      <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                        <i className="bi bi-person" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Full Name <span className="text-danger">*</span>
+                      </label>
+                      <input 
+                        name="name" 
+                        className="form-control bg-light border-0 shadow-none" 
+                        defaultValue={editingUser.name} 
+                        required 
+                      />
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                        <i className="bi bi-envelope" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Email Address <span className="text-danger">*</span>
+                      </label>
+                      <input 
+                        name="email" 
+                        type="email"
+                        className="form-control bg-light border-0 shadow-none" 
+                        defaultValue={editingUser.email} 
+                        required 
+                      />
+                    </div>
+                    
+                    <div className="row g-4 mb-4">
+                        <div className="col-md-6">
+                            <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                                <i className="bi bi-shield-lock" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Role
+                            </label>
+                            <select 
+                                name="role" 
+                                className="form-select bg-light border-0 shadow-none" 
+                                defaultValue={editingUser.role}
+                            >
+                                <option value="Admin">Admin</option>
+                                <option value="Editor">Editor</option>
+                                <option value="Viewer">Viewer</option>
+                            </select>
+                        </div>
+                        <div className="col-md-6">
+                            <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                                <i className="bi bi-toggle-on" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Status
+                            </label>
+                            <select 
+                                name="status" 
+                                className="form-select bg-light border-0 shadow-none" 
+                                defaultValue={editingUser.status ? 'true' : 'false'}
+                            >
+                                <option value="true">Active</option>
+                                <option value="false">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="d-flex justify-content-end gap-2 pt-3 border-top">
+                        <button type="button" className="btn btn-light border px-4" onClick={() => setEditingUser(null)}>Cancel</button>
+                        <button type="submit" className="btn text-white px-4 fw-semibold shadow-sm" style={{ backgroundColor: 'rgba(26, 27, 103, 0.867)' }}>
+                            <i className="bi bi-check-lg me-2"></i>Save Changes
+                        </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+        </div>
+      )}
+    </>
   );
 }
 

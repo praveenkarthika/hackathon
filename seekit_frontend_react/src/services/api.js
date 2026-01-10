@@ -97,6 +97,10 @@ export const fetchUsers = async () => {
   return apiRequest('/get_users');
 };
 
+export const fetchAuditLogs = async (ticketId) => {
+  return apiRequest(`/get_audit_logs?ticket_id=${ticketId}`);
+};
+
 export const fetchAssets = async () => {
   return apiRequest('/get_assets');
 };

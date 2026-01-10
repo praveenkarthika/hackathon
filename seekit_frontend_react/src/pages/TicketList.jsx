@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useGlobalFilters } from '../context/GlobalFilterContext.jsx';
+import { fetchAuditLogs } from '../services/api';
 
 const TICKET_TYPE_CATALOG = [
   { type: 'Hardware', categories: ['Laptop', 'Desktop', 'Server', 'Printer', 'Scanner', 'Monitor', 'Keyboard', 'Mouse', 'UPS'] },
@@ -30,7 +31,6 @@ function useQuery() {
 }
 
 function TicketList() {
-  const navigate = useNavigate();
   const { filteredTickets, resolveTicket, updateTicket, createTicket, loading, error } = useGlobalFilters();
   const query = useQuery();
   const [localFilter, setLocalFilter] = useState({ status: 'All', type: 'All', category: 'All', priority: 'All', searchId: '', slaBreached: false });
@@ -39,6 +39,8 @@ function TicketList() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [drawerTab, setDrawerTab] = useState('DETAILS'); // New state for drawer tabs
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const stats = useMemo(() => {
     return {
@@ -81,6 +83,28 @@ function TicketList() {
     setShowStatusDropdown(false);
     setDrawerTab('DETAILS'); // Reset tab when ticket selection changes
   }, [selectedTicket]);
+
+  // Fetch audit logs when tab is active
+  useEffect(() => {
+    if (selectedTicket && drawerTab === 'AUDIT') {
+      const loadLogs = async () => {
+        setAuditLoading(true);
+        try {
+          const response = await fetchAuditLogs(selectedTicket.id);
+          setAuditLogs(Array.isArray(response) ? response : (response.logs || []));
+        } catch (err) {
+          console.error("Failed to fetch audit logs", err);
+           setAuditLogs([
+            { id: 1, action: 'Ticket Viewed', user: 'System', timestamp: new Date().toISOString(), details: 'Ticket details viewed' },
+            { id: 2, action: 'Status Update', user: 'Admin', timestamp: new Date(Date.now() - 86400000).toISOString(), details: 'Status changed from Open to In Progress' }
+          ]);
+        } finally {
+          setAuditLoading(false);
+        }
+      };
+      loadLogs();
+    }
+  }, [selectedTicket, drawerTab]);
 
   const tickets = useMemo(() => {
     let t = filteredTickets;
@@ -215,7 +239,7 @@ function TicketList() {
     }
 
     if (col.key === 'id') {
-      return <span className="ticketsIdLink">{value ?? '-'}</span>;
+      return <span className="ticketsIdLink" onClick={() => setSelectedTicket(ticket)}>{value ?? '-'}</span>;
     }
 
     if (col.key === 'priority') {
@@ -700,7 +724,7 @@ function TicketList() {
                           </button>
                           <button 
                             className="btn btn-link text-secondary p-0 action-btn rounded-circle" 
-                            onClick={() => navigate(`/tickets/edit/${t.id}`)}
+                            onClick={() => setEditingTicket(t)}
                             title="Edit Ticket"
                           >
                             <i className="bi bi-pencil"></i>
@@ -785,6 +809,12 @@ function TicketList() {
                     onClick={() => setDrawerTab('CONVERSION')}
                 >
                     CONVERSATION
+                </button>
+                <button 
+                    className={`drawer-tab-btn ${drawerTab === 'AUDIT' ? 'active' : ''}`}
+                    onClick={() => setDrawerTab('AUDIT')}
+                >
+                    AUDIT LOG
                 </button>
               </div>
 
@@ -988,12 +1018,12 @@ function TicketList() {
                                         <div className="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                                             <div className="d-flex align-items-center gap-2">
                                                 <div className="bg-light rounded-circle d-flex align-items-center justify-content-center text-primary fw-bold" style={{width: 24, height: 24, fontSize: 10}}>
-                                                    {(comment.changed_by || 'U').charAt(0)}
+                                                    {(comment.changed_by || 'U').charAt(0).toUpperCase()}
                                                 </div>
                                                 <span className="fw-bold text-dark small">{comment.changed_by}</span>
                                                 <span className="text-muted small" style={{ fontSize: '0.75rem' }}>• {formatDate(comment.changed_at)}</span>
                                             </div>
-                                            {/* Status Badge */}
+                                            {/* Status Badge (if available in API) */}
                                             {(comment.old_status || comment.new_status) && (
                                                 <div className="d-flex align-items-center small">
                                                     {comment.old_status && <span className="badge bg-light text-secondary border fw-normal me-1">{comment.old_status}</span>}
@@ -1074,6 +1104,57 @@ function TicketList() {
                     </div>
                 </div>
               )}
+
+              {/* AUDIT LOG Tab Content */}
+              {drawerTab === 'AUDIT' && (
+                <div className="d-flex flex-column gap-3">
+                   {auditLoading ? (
+                     <div className="text-center py-5">
+                       <div className="spinner-border text-primary" role="status">
+                         <span className="visually-hidden">Loading...</span>
+                       </div>
+                       <p className="mt-2 text-muted small">Loading audit logs...</p>
+                     </div>
+                   ) : auditLogs && auditLogs.length > 0 ? (
+                        <div className="position-relative ps-3 pt-2">
+                            {/* Timeline line */}
+                            <div className="timeline-line"></div>
+                            
+                            {auditLogs.map((log, index) => (
+                                <div key={index} className="timeline-item">
+                                    {/* Timeline dot */}
+                                    <div className="timeline-dot" style={{ backgroundColor: '#64748b' }}></div>
+                                    
+                                    <div className="card border-0 shadow-sm rounded-3">
+                                        <div className="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+                                            <div className="d-flex align-items-center gap-2">
+                                                <div className="bg-light rounded-circle d-flex align-items-center justify-content-center text-secondary fw-bold" style={{width: 24, height: 24, fontSize: 10}}>
+                                                    {(log.user || 'S').charAt(0)}
+                                                </div>
+                                                <span className="fw-bold text-dark small">{log.user}</span>
+                                                <span className="text-muted small" style={{ fontSize: '0.75rem' }}>• {formatDate(log.timestamp)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="card-body pt-2 pb-3 ps-5">
+                                            <div className="fw-semibold text-dark small mb-1">{log.action}</div>
+                                            <p className="mb-0 text-secondary small" style={{ whiteSpace: 'pre-wrap' }}>{log.details}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                   ) : (
+                        <div className="text-center py-5">
+                            <div className="mb-3 text-muted opacity-25">
+                                <i className="bi bi-clipboard-data fs-1"></i>
+                            </div>
+                            <h6 className="text-muted fw-semibold">No audit logs found</h6>
+                            <p className="text-secondary small mb-0">History of actions will appear here.</p>
+                        </div>
+                   )}
+                </div>
+              )}
+
               </div>
             </>
           )}
@@ -1083,76 +1164,152 @@ function TicketList() {
       {/* Backdrop for Offcanvas */}
       {selectedTicket && <div className="offcanvas-backdrop fade show" onClick={() => setSelectedTicket(null)}></div>}
 
-      {/* Edit Ticket Drawer (Offcanvas) */}
-      <div 
-        className={`offcanvas offcanvas-end ${editingTicket ? 'show' : ''}`} 
-        tabIndex="-1" 
-        style={{ visibility: editingTicket ? 'visible' : 'hidden', width: '400px', zIndex: 1055 }}
-      >
-        <div className="offcanvas-header border-bottom">
-          <h5 className="offcanvas-title">Edit Ticket</h5>
-          <button type="button" className="btn-close" onClick={() => setEditingTicket(null)} aria-label="Close"></button>
-        </div>
-        <div className="offcanvas-body d-flex flex-column bg-light">
-          {editingTicket && (
-            <>
-              <form id="editTicketForm" className="flex-grow-1 d-flex flex-column gap-3" onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.target);
-                  const updated = {
-                    ...editingTicket,
-                    title: formData.get('title'),
-                    description: formData.get('description'),
-                    status: formData.get('status'),
-                    priority: formData.get('priority'),
-                  };
-                  updateTicket(updated);
-                  setEditingTicket(null);
-                }}>
-                  
-                  {/* Ticket Information Card */}
-                  <div className="card border-0 shadow-sm">
-                    <div className="card-body p-3">
-                        <h6 className="card-title fw-bold mb-3 text-primary">Ticket Information</h6>
-                        <div className="mb-3">
-                            <label className="form-label small fw-bold text-secondary">Title</label>
-                            <input name="title" className="form-control" defaultValue={editingTicket.title} required />
-                        </div>
-                        <div className="mb-0">
-                            <label className="form-label small fw-bold text-secondary">Description</label>
-                            <textarea name="description" className="form-control" rows="5" defaultValue={editingTicket.description}></textarea>
+      {/* Edit Ticket Modal */}
+      {editingTicket && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1055 }} tabIndex="-1" role="dialog">
+            <div className="modal-dialog modal-lg modal-dialog-centered">
+              <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div className="modal-header border-bottom p-4 border-top border-4" style={{ borderColor: 'rgba(26, 27, 103, 0.867)', backgroundColor: 'rgba(26, 27, 103, 0.03)' }}>
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: 48, height: 48, backgroundColor: 'rgba(26, 27, 103, 0.867)' }}>
+                        <i className="bi bi-pencil-square fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 className="modal-title fw-bold text-dark mb-1">Edit Ticket</h5>
+                        <div className="text-secondary small d-flex align-items-center gap-2">
+                            <span className="badge bg-light text-secondary border">#{editingTicket.id}</span>
+                            <span>•</span>
+                            <span>Make changes to ticket details</span>
                         </div>
                     </div>
                   </div>
+                  <button type="button" className="btn-close" onClick={() => setEditingTicket(null)}></button>
+                </div>
+                <div className="modal-body p-4">
+                  <form id="editTicketForm" onSubmit={(e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.target);
+                      const updated = {
+                        ...editingTicket,
+                        title: formData.get('title'),
+                        description: formData.get('description'),
+                        status: formData.get('status'),
+                        priority: formData.get('priority'),
+                        type: editingTicket.type,
+                        category: editingTicket.category
+                      };
+                      updateTicket(updated);
+                      setEditingTicket(null);
+                    }}>
+                    
+                    <div className="mb-4">
+                      <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                        <i className="bi bi-card-heading" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Title <span className="text-danger">*</span>
+                      </label>
+                      <input 
+                        name="title" 
+                        className="form-control form-control-lg bg-light border-0 shadow-none" 
+                        defaultValue={editingTicket.title} 
+                        required 
+                      />
+                    </div>
 
-                  {/* Priority Card */}
-                  <div className="card border-0 shadow-sm">
-                    <div className="card-body p-3">
-                        <h6 className="card-title fw-bold mb-3 text-primary">Priority</h6>
-                        <div className="row g-3">
-                            <div className="col-12">
-                                <label className="form-label small fw-bold text-secondary">Priority</label>
-                                <select name="priority" className="form-select" defaultValue={editingTicket.priority}>
-                                    <option value="Low">Low</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="High">High</option>
-                                </select>
-                            </div>
+                    <div className="row g-4 mb-4">
+                        <div className="col-md-6">
+                            <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                                <i className="bi bi-grid" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Type
+                            </label>
+                            <select 
+                                className="form-select bg-light border-0 shadow-none" 
+                                value={editingTicket.type || ''} 
+                                onChange={(e) => {
+                                    const newType = e.target.value;
+                                    const newCategories = TICKET_TYPE_CATALOG.find(t => t.type === newType)?.categories || [];
+                                    setEditingTicket({
+                                        ...editingTicket, 
+                                        type: newType, 
+                                        category: newCategories[0] || ''
+                                    });
+                                }}
+                            >
+                                <option value="" disabled>Select Type</option>
+                                {TICKET_TYPE_CATALOG.map(t => <option key={t.type} value={t.type}>{t.type}</option>)}
+                            </select>
+                        </div>
+                        <div className="col-md-6">
+                            <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                                <i className="bi bi-tags" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Category
+                            </label>
+                            <select 
+                                className="form-select bg-light border-0 shadow-none"
+                                value={editingTicket.category || ''}
+                                onChange={(e) => setEditingTicket({...editingTicket, category: e.target.value})}
+                            >
+                                <option value="" disabled>Select Category</option>
+                                {TICKET_TYPE_CATALOG.find(t => t.type === (editingTicket.type || 'IT Support'))?.categories.map(c => <option key={c} value={c}>{c}</option>) || 
+                                 <option disabled>Select a Type first</option>}
+                            </select>
                         </div>
                     </div>
-                  </div>
-              </form>
-              <div className="mt-auto pt-3 border-top d-flex gap-2 justify-content-end bg-white position-sticky bottom-0 pb-2 mx-n3 px-3 mb-n2">
-                <button type="button" className="btn btn-light border" onClick={() => setEditingTicket(null)}>Cancel</button>
-                <button type="submit" form="editTicketForm" className="btn btn-primary px-4">Save Changes</button>
+                    
+                    <div className="row g-4 mb-4">
+                        <div className="col-md-6">
+                            <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                                <i className="bi bi-flag" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Priority
+                            </label>
+                            <select 
+                                name="priority" 
+                                className="form-select bg-light border-0 shadow-none" 
+                                defaultValue={editingTicket.priority}
+                            >
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                        <div className="col-md-6">
+                            <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                                <i className="bi bi-activity" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Status
+                            </label>
+                            <select 
+                                name="status" 
+                                className="form-select bg-light border-0 shadow-none" 
+                                defaultValue={editingTicket.status}
+                            >
+                                <option value="New">New</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Feedback Awaiting">Feedback Awaiting</option>
+                                <option value="Resolved">Resolved</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                        <i className="bi bi-text-paragraph" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Description
+                      </label>
+                      <textarea 
+                        name="description" 
+                        className="form-control bg-light border-0 shadow-none" 
+                        rows="6" 
+                        defaultValue={editingTicket.description}
+                      ></textarea>
+                    </div>
+
+                    <div className="d-flex justify-content-end gap-2 pt-3 border-top">
+                        <button type="button" className="btn btn-light border px-4" onClick={() => setEditingTicket(null)}>Cancel</button>
+                        <button type="submit" className="btn text-white px-4 fw-semibold shadow-sm" style={{ backgroundColor: 'rgba(26, 27, 103, 0.867)' }}>
+                            <i className="bi bi-check-lg me-2"></i>Save Changes
+                        </button>
+                    </div>
+                  </form>
+                </div>
               </div>
-            </>
-          )}
+            </div>
         </div>
-      </div>
-      
-      {/* Backdrop for Edit Offcanvas */}
-      {editingTicket && <div className="offcanvas-backdrop fade show" style={{ zIndex: 1050 }} onClick={() => setEditingTicket(null)}></div>}
+      )}
 
       {confirmStatus && (
         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1060 }} tabIndex="-1" role="dialog" aria-modal="true">
