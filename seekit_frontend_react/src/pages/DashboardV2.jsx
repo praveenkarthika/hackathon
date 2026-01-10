@@ -186,33 +186,6 @@ const DashboardV2 = () => {
 
   // --- CHART OPTIONS HELPERS ---
 
-  // 1. SLA Gauge (Fixed Overlap)
-  const getSLAGaugeOption = () => ({
-    series: [{
-      type: 'gauge',
-      startAngle: 180, endAngle: 0,
-      min: 0, max: 100,
-      splitNumber: 5,
-      itemStyle: { color: data.complianceRate > 90 ? '#10B981' : data.complianceRate > 75 ? '#F59E0B' : '#EF4444' },
-      progress: { show: true, width: 18 },
-      pointer: { show: false },
-      axisLine: { lineStyle: { width: 18 } },
-      axisTick: { show: false },
-      splitLine: { length: 15, lineStyle: { width: 2, color: '#999' } },
-      axisLabel: { show: false }, // Hides labels to prevent overlap
-      detail: {
-        valueAnimation: true,
-        formatter: '{value}%',
-        color: 'inherit',
-        fontSize: 28,
-        fontWeight: 'bold',
-        offsetCenter: [0, '15%']
-      },
-      title: { offsetCenter: [0, '40%'], fontSize: 14, color: '#64748b' },
-      data: [{ value: parseFloat(data.complianceRate.toFixed(1)), name: 'SLA Health' }]
-    }]
-  });
-
   // 4. Category Distribution (Donut)
   const getCategoryOption = () => ({
     tooltip: { trigger: 'item' },
@@ -424,71 +397,137 @@ const DashboardV2 = () => {
            </button>
       </div>
 
-      {/* LAYER 1: REAL-TIME RISK */}
-      <div className="row g-3 mb-4">
-        {/* SLA Gauge */}
-        <div className="col-md-3">
-            <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="card border-0 shadow-sm h-100">
-                <div className="card-body p-2 d-flex flex-column align-items-center justify-content-center position-relative">
-                    <h6 className="text-uppercase text-muted small fw-bold position-absolute top-0 start-0 m-3">SLA Health</h6>
-                    <ReactECharts option={getSLAGaugeOption()} style={{ height: '180px', width: '100%' }} />
+      {/* LAYER 1: REAL-TIME METRICS GRID (8 COLUMNS) */}
+      <div className="row g-2 mb-4 row-cols-2 row-cols-md-4 row-cols-lg-8">
+        
+        {/* 1. SLA Health */}
+        <div className="col">
+            <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className={`card border-0 shadow-sm h-100 ${data.complianceRate > 90 ? 'bg-success' : data.complianceRate > 75 ? 'bg-warning' : 'bg-danger'} bg-opacity-10`}>
+                <div className="card-body p-2 d-flex align-items-center">
+                    <div className={`rounded-circle p-2 d-flex align-items-center justify-content-center me-2 ${data.complianceRate > 90 ? 'bg-success' : data.complianceRate > 75 ? 'bg-warning' : 'bg-danger'} bg-opacity-25`} style={{width: '36px', height: '36px', minWidth: '36px'}}>
+                        <i className={`bi ${data.complianceRate > 90 ? 'bi-heart-pulse' : 'bi-activity'} fs-6 fw-bold ${data.complianceRate > 90 ? 'text-success' : data.complianceRate > 75 ? 'text-warning' : 'text-danger'}`}></i>
+                    </div>
+                    <div className="text-start">
+                        <h5 className={`fw-bold mb-0 ${data.complianceRate > 90 ? 'text-success' : data.complianceRate > 75 ? 'text-warning' : 'text-danger'}`}>
+                            <CountUp end={data.complianceRate} decimals={1} duration={2} />%
+                        </h5>
+                        <span className={`small fw-bold opacity-75 ${data.complianceRate > 90 ? 'text-success' : data.complianceRate > 75 ? 'text-warning' : 'text-danger'}`} style={{fontSize: '0.65rem'}}>SLA Health</span>
+                    </div>
                 </div>
             </motion.div>
         </div>
 
-        {/* Risk & Critical Stats */}
-        <div className="col-md-9">
-            <div className="row g-3 h-100">
-                <div className="col-md-4">
-                    <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.1}} className="card border-0 shadow-sm h-100 bg-danger bg-gradient text-white">
-                        <div className="card-body p-4 d-flex flex-column justify-content-between">
-                            <div>
-                                <div className="d-flex justify-content-between">
-                                    <i className="bi bi-exclamation-octagon fs-3 opacity-50"></i>
-                                    <span className="badge bg-white bg-opacity-25">Imminent Breach</span>
-                                </div>
-                                <h2 className="display-4 fw-bold mt-2 mb-0">
-                                    <CountUp end={data.riskCount} duration={2} />
-                                </h2>
-                                <p className="mb-0 opacity-75 small">Tickets &lt; 1h remaining</p>
-                            </div>
-                        </div>
-                    </motion.div>
+        {/* 2. Imminent Breach */}
+        <div className="col">
+            <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.05}} className="card border-0 shadow-sm h-100 bg-warning bg-opacity-10">
+                <div className="card-body p-2 d-flex align-items-center">
+                    <div className="rounded-circle p-2 d-flex align-items-center justify-content-center me-2 bg-warning bg-opacity-25" style={{width: '36px', height: '36px', minWidth: '36px'}}>
+                        <i className="bi bi-exclamation-octagon fs-6 fw-bold text-warning"></i>
+                    </div>
+                    <div className="text-start">
+                        <h5 className="fw-bold mb-0 text-warning"><CountUp end={data.riskCount} duration={2} /></h5>
+                        <span className="small fw-bold text-warning opacity-75" style={{fontSize: '0.65rem'}}>Risk &lt; 1h</span>
+                    </div>
                 </div>
-                <div className="col-md-4">
-                     <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.2}} className="card border-0 shadow-sm h-100 bg-white">
-                        <div className="card-body p-4 d-flex flex-column justify-content-between">
-                            <div>
-                                <div className="d-flex justify-content-between">
-                                    <i className="bi bi-shield-exclamation text-warning fs-3"></i>
-                                    <span className="badge bg-light text-dark">High Priority</span>
-                                </div>
-                                <h2 className="display-4 fw-bold mt-2 mb-0 text-dark">
-                                    <CountUp end={data.criticalOpen} duration={2} />
-                                </h2>
-                                <p className="mb-0 text-muted small">Active Critical/High Incidents</p>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-                <div className="col-md-4">
-                    <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.3}} className="card border-0 shadow-sm h-100 bg-primary bg-gradient text-white">
-                        <div className="card-body p-4 d-flex flex-column justify-content-between">
-                            <div>
-                                <div className="d-flex justify-content-between">
-                                    <i className="bi bi-inbox fs-3 opacity-50"></i>
-                                    <span className="badge bg-white bg-opacity-25">Backlog</span>
-                                </div>
-                                <h2 className="display-4 fw-bold mt-2 mb-0">
-                                    <CountUp end={data.openTickets.length} duration={2.5} />
-                                </h2>
-                                <p className="mb-0 opacity-75 small">Total Open Tickets</p>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            </div>
+            </motion.div>
         </div>
+
+        {/* 3. Critical/High */}
+        <div className="col">
+             <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.1}} className="card border-0 shadow-sm h-100 bg-danger bg-opacity-10">
+                <div className="card-body p-2 d-flex align-items-center">
+                    <div className="rounded-circle p-2 d-flex align-items-center justify-content-center me-2 bg-danger bg-opacity-25" style={{width: '36px', height: '36px', minWidth: '36px'}}>
+                        <i className="bi bi-shield-exclamation fs-6 fw-bold text-danger"></i>
+                    </div>
+                    <div className="text-start">
+                        <h5 className="fw-bold mb-0 text-danger"><CountUp end={data.criticalOpen} duration={2} /></h5>
+                        <span className="small fw-bold text-danger opacity-75" style={{fontSize: '0.65rem'}}>Critical/High</span>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+
+        {/* 4. Open Backlog */}
+        <div className="col">
+            <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.15}} className="card border-0 shadow-sm h-100 bg-primary bg-opacity-10">
+                <div className="card-body p-2 d-flex align-items-center">
+                    <div className="rounded-circle p-2 d-flex align-items-center justify-content-center me-2 bg-primary bg-opacity-25" style={{width: '36px', height: '36px', minWidth: '36px'}}>
+                        <i className="bi bi-inbox fs-6 fw-bold text-primary"></i>
+                    </div>
+                    <div className="text-start">
+                        <h5 className="fw-bold mb-0 text-primary"><CountUp end={data.openTickets.length} duration={2} /></h5>
+                        <span className="small fw-bold text-primary opacity-75" style={{fontSize: '0.65rem'}}>Open</span>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+
+        {/* 5. SLA Breached (New) */}
+        <div className="col">
+             <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.2}} className="card border-0 shadow-sm h-100 bg-dark bg-opacity-10">
+                <div className="card-body p-2 d-flex align-items-center">
+                    <div className="rounded-circle p-2 d-flex align-items-center justify-content-center me-2 bg-dark bg-opacity-25" style={{width: '36px', height: '36px', minWidth: '36px'}}>
+                        <i className="bi bi-x-circle fs-6 fw-bold text-dark"></i>
+                    </div>
+                    <div className="text-start">
+                        <h5 className="fw-bold mb-0 text-dark"><CountUp end={data.slaBreachedCount} duration={2} /></h5>
+                        <span className="small fw-bold text-dark opacity-75" style={{fontSize: '0.65rem'}}>Breached</span>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+
+        {/* 6. Unassigned (New) */}
+        <div className="col">
+             <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.25}} className="card border-0 shadow-sm h-100 bg-secondary bg-opacity-10">
+                <div className="card-body p-2 d-flex align-items-center">
+                    <div className="rounded-circle p-2 d-flex align-items-center justify-content-center me-2 bg-secondary bg-opacity-25" style={{width: '36px', height: '36px', minWidth: '36px'}}>
+                        <i className="bi bi-person-dash fs-6 fw-bold text-secondary"></i>
+                    </div>
+                    <div className="text-start">
+                        <h5 className="fw-bold mb-0 text-secondary">
+                            <CountUp end={data.agentLoad['Unassigned']?.count || 0} duration={2} />
+                        </h5>
+                        <span className="small fw-bold text-secondary opacity-75" style={{fontSize: '0.65rem'}}>Unassigned</span>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+
+        {/* 7. Resolved (New) */}
+        <div className="col">
+             <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.3}} className="card border-0 shadow-sm h-100 bg-success bg-opacity-10">
+                <div className="card-body p-2 d-flex align-items-center">
+                    <div className="rounded-circle p-2 d-flex align-items-center justify-content-center me-2 bg-success bg-opacity-25" style={{width: '36px', height: '36px', minWidth: '36px'}}>
+                        <i className="bi bi-check-circle fs-6 fw-bold text-success"></i>
+                    </div>
+                    <div className="text-start">
+                        <h5 className="fw-bold mb-0 text-success">
+                            <CountUp end={data.funnelStatus['Resolved'] || 0} duration={2} />
+                        </h5>
+                        <span className="small fw-bold text-success opacity-75" style={{fontSize: '0.65rem'}}>Resolved</span>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+
+        {/* 8. Total Volume (New) */}
+        <div className="col">
+             <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} transition={{delay:0.35}} className="card border-0 shadow-sm h-100 bg-info bg-opacity-10">
+                <div className="card-body p-2 d-flex align-items-center">
+                    <div className="rounded-circle p-2 d-flex align-items-center justify-content-center me-2 bg-info bg-opacity-25" style={{width: '36px', height: '36px', minWidth: '36px'}}>
+                        <i className="bi bi-layers fs-6 fw-bold text-info"></i>
+                    </div>
+                    <div className="text-start">
+                        <h5 className="fw-bold mb-0 text-info">
+                            <CountUp end={data.total} duration={2} />
+                        </h5>
+                        <span className="small fw-bold text-info opacity-75" style={{fontSize: '0.65rem'}}>Volume</span>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+
       </div>
 
       {/* LAYER 2 & 3: COMPOSITION & PROCESS */}

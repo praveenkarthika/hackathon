@@ -42,8 +42,8 @@ function Sidebar({ isNavOpen = true }) {
     <div className={`${styles.sidebar} ${isNavOpen ? '' : styles.sidebarClosed}`}>
       {/* Dashboard */}
       <div 
-        className={`${styles.menuItem} ${isActive('/dashboard') ? styles.active : ''}`}
-        onClick={() => handleMainClick('dashboard', '/dashboard')}
+        className={`${styles.menuItem} ${isActive('/dashboard-v2') ? styles.active : ''}`}
+        onClick={() => handleMainClick('dashboard', '/dashboard-v2')}
       >
         <div className="d-flex align-items-center">
             <i className={`bi bi-speedometer2 ${styles.icon}`}></i>

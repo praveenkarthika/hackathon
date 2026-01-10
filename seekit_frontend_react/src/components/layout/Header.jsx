@@ -4,31 +4,29 @@ import styles from './Header.module.scss';
 
 function Header({ onLogout }) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   return (
-    <header className={`${styles.header} d-flex align-items-center justify-content-between px-4`}>
-      <div className="d-flex align-items-center gap-4">
+    <header className={`${styles.header} d-flex flex-wrap align-items-center justify-content-between px-3 px-md-4 py-2`}>
+      <div className="d-flex align-items-center gap-3 gap-md-4">
+        {/* Mobile Menu Toggle */}
+        <button className="btn btn-link p-0 text-dark d-md-none" onClick={() => setShowMobileMenu(!showMobileMenu)}>
+          <i className="bi bi-list fs-4"></i>
+        </button>
+
         {/* Logo */}
         <div className="d-flex align-items-center">
-          <img src="/logo1.png" alt="CKit Logo" style={{ height: '50px' }} />
+          <img src="/logo1.png" alt="CKit Logo" style={{ height: '40px', maxHeight: '50px' }} />
         </div>
 
         {/* Navigation */}
-        <nav className="d-flex align-items-center gap-1">
-          <NavLink 
-            to="/dashboard" 
-            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-          >
-            <i className="bi bi-speedometer2"></i>
-            Dashboard
-          </NavLink>
+        <nav className="d-none d-md-flex align-items-center gap-1">
           <NavLink 
             to="/dashboard-v2" 
             className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           >
-            <i className="bi bi-graph-up-arrow"></i>
-            Dashboard 2.0
-            <span className="badge bg-primary rounded-pill ms-2" style={{ fontSize: '0.6rem' }}>NEW</span>
+            <i className="bi bi-speedometer2"></i>
+            Dashboard
           </NavLink>
           <NavLink 
             to="/tickets" 
@@ -84,6 +82,38 @@ function Header({ onLogout }) {
           )}
         </div>
       </div>
+      {/* Mobile Menu */}
+      {showMobileMenu && (
+        <div className="w-100 d-md-none mt-3 border-top pt-2">
+          <nav className="d-flex flex-column gap-2">
+            <NavLink 
+              to="/dashboard" 
+              className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''} px-2 py-2`}
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <i className="bi bi-speedometer2 me-2"></i>
+              Dashboard
+            </NavLink>
+            <NavLink 
+              to="/dashboard-v2" 
+              className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''} px-2 py-2`}
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <i className="bi bi-graph-up-arrow me-2"></i>
+              Dashboard 2.0
+              <span className="badge bg-primary rounded-pill ms-2" style={{ fontSize: '0.6rem' }}>NEW</span>
+            </NavLink>
+            <NavLink 
+              to="/tickets" 
+              className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''} px-2 py-2`}
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <i className="bi bi-ticket-perforated me-2"></i>
+              Tickets
+            </NavLink>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

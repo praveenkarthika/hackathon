@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
-import { fetchTickets, updateTicketApi, resolveTicketApi } from '../services/api.js';
+import { fetchTickets, updateTicketApi, resolveTicketApi, createTicketApi } from '../services/api.js';
 
 const GlobalFilterContext = createContext(null);
 
@@ -79,6 +79,25 @@ export const GlobalFilterProvider = ({ children }) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
   
+  const createTicket = async (newTicketData) => {
+    try {
+      setLoading(true);
+      // Call API
+      const response = await createTicketApi(newTicketData);
+      
+      // Refresh tickets to get the full object (including ID and timestamps)
+      await loadTickets();
+      
+      return response;
+    } catch (err) {
+      console.error("Failed to create ticket:", err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateTicket = async (updatedTicket) => {
     try {
       // Optimistic update
@@ -194,6 +213,7 @@ export const GlobalFilterProvider = ({ children }) => {
     filteredTickets,
     resolveTicket,
     updateTicket,
+    createTicket,
     groupTicketsByStatusType,
     groupTicketsByType,
     groupTicketsTrend,

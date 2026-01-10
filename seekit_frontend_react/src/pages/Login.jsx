@@ -23,7 +23,7 @@ function Login({ onLogin }) {
 
       localStorage.setItem('token', data.token);
       onLogin();
-      navigate('/dashboard');
+      navigate('/dashboard-v2');
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {

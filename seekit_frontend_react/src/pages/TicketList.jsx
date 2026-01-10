@@ -13,6 +13,17 @@ const TICKET_TYPE_CATALOG = [
   { type: 'Other', categories: ['General Query', 'Unknown Issue'] },
 ];
 
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  });
+};
+
 function useQuery() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
@@ -20,13 +31,21 @@ function useQuery() {
 
 function TicketList() {
   const navigate = useNavigate();
-  const { filteredTickets, resolveTicket, updateTicket, loading, error } = useGlobalFilters();
+  const { filteredTickets, resolveTicket, updateTicket, createTicket, loading, error } = useGlobalFilters();
   const query = useQuery();
   const [localFilter, setLocalFilter] = useState({ status: 'All', type: 'All', category: 'All', priority: 'All', searchId: '' });
   const [sort, setSort] = useState({ key: 'createdAt', dir: 'desc' });
   const [page, setPage] = useState(1);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [drawerTab, setDrawerTab] = useState('DETAILS'); // New state for drawer tabs
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newTicket, setNewTicket] = useState({
+    title: '',
+    description: '',
+    type: 'Hardware',
+    category: 'Laptop', // Default to first category of Hardware
+    priority: 'Low'
+  });
   const [editingTicket, setEditingTicket] = useState(null);
   const [confirmStatus, setConfirmStatus] = useState(null);
   const [confirmComment, setConfirmComment] = useState('');
@@ -130,6 +149,37 @@ function TicketList() {
     setSelectedTicket(null);
   };
 
+  const handleCreateTicket = async (e) => {
+    e.preventDefault();
+    try {
+      await createTicket({
+          ...newTicket,
+          status: 'Created', // Default status
+          created_at: new Date().toISOString()
+      });
+      setShowCreateModal(false);
+      setNewTicket({
+        title: '',
+        description: '',
+        type: 'Hardware',
+        category: 'Laptop',
+        priority: 'Low'
+      });
+    } catch (err) {
+      alert('Failed to create ticket: ' + err.message);
+    }
+  };
+
+  const handleNewTicketTypeChange = (e) => {
+    const type = e.target.value;
+    const found = TICKET_TYPE_CATALOG.find((x) => x.type === type);
+    setNewTicket(prev => ({
+        ...prev,
+        type,
+        category: found?.categories[0] || ''
+    }));
+  };
+
   const columns = [
     { key: 'id', label: 'Ticket ID' },
     { key: 'title', label: 'Title' },
@@ -185,115 +235,379 @@ function TicketList() {
   };
 
   return (
-    <div className="container-xxl p-4">
-    <div className="card">
-      <div className="card-body">
-        <div className="d-flex align-items-center justify-content-between mb-3">
-          <h6 className="mb-0">Tickets</h6>
-          <div className="d-flex gap-2">
-            <input 
-              type="text" 
-              className="form-control form-control-sm" 
-              placeholder="Search Ticket ID..." 
-              value={localFilter.searchId} 
-              onChange={(e) => setLocalFilter((f) => ({ ...f, searchId: e.target.value }))}
-              // style={{ maxWidth: '150px' }}
-            />
-            <select className="form-select form-select-sm" value={localFilter.status} onChange={(e) => setLocalFilter((f) => ({ ...f, status: e.target.value }))}>
+    <div className="container-fluid p-4 bg-light min-vh-100">
+      <style>{`
+        .search-input-group {
+          position: relative;
+        }
+        .search-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #94a3b8;
+          pointer-events: none;
+        }
+        .search-input {
+          padding-left: 38px;
+          border-radius: 8px;
+          border-color: #e2e8f0;
+          box-shadow: none;
+        }
+        .search-input:focus {
+          border-color: #4f46e5;
+          box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+        .filter-select {
+          border-radius: 8px;
+          border-color: #e2e8f0;
+          font-size: 0.875rem;
+          cursor: pointer;
+        }
+        .filter-select:focus {
+          border-color: #4f46e5;
+          box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+        .table-custom {
+          margin-bottom: 0;
+        }
+        .table-custom thead th {
+          background-color: #f8fafc;
+          color: #64748b;
+          font-weight: 600;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid #e2e8f0;
+          padding: 1rem 1.5rem;
+          white-space: nowrap;
+        }
+        .table-custom tbody td {
+          padding: 1rem 1.5rem;
+          color: #334155;
+          font-size: 0.875rem;
+          border-bottom: 1px solid #f1f5f9;
+          vertical-align: middle;
+        }
+        .table-custom tbody tr {
+          transition: all 0.2s;
+        }
+        .table-custom tbody tr:nth-of-type(even) {
+          background-color: #f8fafc;
+        }
+        .table-custom tbody tr:hover {
+          background-color: #f1f5f9;
+        }
+        .ticketsIdLink {
+          font-family: 'Monaco', 'Consolas', monospace;
+          color: #4f46e5;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .ticketsIdLink:hover {
+          text-decoration: underline;
+        }
+        .pagination-custom .page-link {
+          border: none;
+          color: #64748b;
+          border-radius: 8px;
+          margin: 0 4px;
+          font-size: 0.875rem;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        .pagination-custom .page-item.active .page-link {
+          background-color: #4f46e5;
+          color: white;
+          box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+        }
+        .pagination-custom .page-item.disabled .page-link {
+          color: #cbd5e1;
+          background-color: transparent;
+        }
+        .pagination-custom .page-link:hover:not(.active) {
+          background-color: #e2e8f0;
+          color: #0f172a;
+        }
+        .action-btn {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        .action-btn:hover {
+          background-color: #f1f5f9;
+          transform: translateY(-1px);
+        }
+
+        /* Drawer Styles */
+        .ticket-offcanvas {
+          box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05);
+          width: 480px !important;
+        }
+        .ticket-offcanvas .offcanvas-header {
+          background-color: #fff;
+          padding: 1.25rem 1.5rem;
+        }
+        .ticket-offcanvas .offcanvas-title {
+          font-weight: 700;
+          color: #0f172a;
+          font-size: 1.125rem;
+        }
+        .ticket-offcanvas .offcanvas-body {
+          padding: 0;
+          background-color: #f8fafc;
+        }
+        
+        /* Custom Tabs */
+        .drawer-tabs {
+          background: #fff;
+          padding: 0 1.5rem;
+          border-bottom: 1px solid #e2e8f0;
+          display: flex;
+          gap: 2rem;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+        }
+        .drawer-tab-btn {
+          background: none;
+          border: none;
+          padding: 1rem 0;
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #64748b;
+          position: relative;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .drawer-tab-btn:hover {
+          color: #4f46e5;
+        }
+        .drawer-tab-btn.active {
+          color: #4f46e5;
+        }
+        .drawer-tab-btn.active::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 2px;
+          background-color: #4f46e5;
+          border-radius: 2px 2px 0 0;
+        }
+        
+        /* Info Cards */
+        .info-card {
+          background: #fff;
+          border-radius: 12px;
+          padding: 1.25rem;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          border: 1px solid #f1f5f9;
+          transition: all 0.2s;
+        }
+        .info-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .info-label {
+          color: #64748b;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.025em;
+          margin-bottom: 0.35rem;
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+        }
+        .info-value {
+          color: #0f172a;
+          font-size: 0.9375rem;
+          font-weight: 500;
+          line-height: 1.5;
+        }
+        
+        /* Timeline */
+        .timeline-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 1rem;
+            width: 2px;
+            background-color: #e2e8f0;
+        }
+        .timeline-item {
+            position: relative;
+            padding-left: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: calc(1rem - 5px);
+            top: 1.25rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #fff;
+            border: 2px solid #4f46e5;
+            z-index: 1;
+        }
+      `}</style>
+
+      <div className="d-flex flex-column gap-4 max-w-7xl mx-auto">
+        {/* Header & Filters */}
+        <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+          <div>
+            <h4 className="fw-bold text-dark mb-1">Ticket Management</h4>
+            <p className="text-secondary small mb-0">Monitor and resolve support requests efficiently</p>
+          </div>
+          
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            <button 
+                className="btn btn-primary fw-semibold d-flex align-items-center gap-2 shadow-sm"
+                onClick={() => setShowCreateModal(true)}
+            >
+                <i className="bi bi-plus-lg"></i> <span className="d-none d-md-inline">Create Ticket</span>
+            </button>
+
+            <div className="search-input-group">
+              <i className="bi bi-search search-icon"></i>
+              <input 
+                type="text" 
+                className="form-control search-input" 
+                placeholder="Search Ticket ID..." 
+                value={localFilter.searchId} 
+                onChange={(e) => setLocalFilter((f) => ({ ...f, searchId: e.target.value }))}
+                style={{ width: '220px' }}
+              />
+            </div>
+            
+            <select className="form-select filter-select" style={{width: 'auto', minWidth: '120px'}} value={localFilter.status} onChange={(e) => setLocalFilter((f) => ({ ...f, status: e.target.value }))}>
               {['All', 'Open', 'In Progress', 'Resolved'].map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select
-              className="form-select form-select-sm"
+            
+            <select className="form-select filter-select" style={{width: 'auto', minWidth: '120px'}} value={localFilter.priority} onChange={(e) => setLocalFilter((f) => ({ ...f, priority: e.target.value }))}>
+              {['All', 'Critical', 'High', 'Medium', 'Low'].map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+            
+             <select
+              className="form-select filter-select"
+              style={{width: 'auto', minWidth: '140px'}} 
               value={localFilter.type}
               onChange={(e) => setLocalFilter((f) => ({ ...f, type: e.target.value, category: 'All' }))}
             >
               {ticketTypeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <select
-              className="form-select form-select-sm"
-              value={localFilter.category}
-              onChange={(e) => setLocalFilter((f) => ({ ...f, category: e.target.value }))}
-            >
-              {ticketCategoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select className="form-select form-select-sm" value={localFilter.priority} onChange={(e) => setLocalFilter((f) => ({ ...f, priority: e.target.value }))}>
-              {['All', 'Critical', 'High', 'Medium', 'Low'].map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
           </div>
         </div>
-        <div className="ticketsTableWrap">
+
+        {/* Card Container */}
+        <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
           <div className="table-responsive">
-            <table className="table ticketsTable align-middle">
-            <thead>
-              <tr>
-                {columns.map((col) => (
-                  <th key={col.key} role="button" onClick={() => changeSort(col.key)}>
-                    <span className="ticketsThLabel">{col.label}</span>
-                    {sort.key === col.key ? <span className="ticketsSortMark">{sort.dir === 'asc' ? '↑' : '↓'}</span> : null}
-                  </th>
-                ))}
-                <th className="ticketsThAction">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.map((t) => (
-                <tr key={t.id}>
+            <table className="table table-custom align-middle mb-0">
+              <thead>
+                <tr>
                   {columns.map((col) => (
-                    <td key={col.key}>{columnCell(t, col)}</td>
+                    <th key={col.key} role="button" onClick={() => changeSort(col.key)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      <div className="d-flex align-items-center gap-2">
+                        {col.label}
+                        {sort.key === col.key && (
+                          <span className="text-primary">{sort.dir === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                        {sort.key !== col.key && (
+                          <span className="text-muted opacity-25">↕</span>
+                        )}
+                      </div>
+                    </th>
                   ))}
-                  <td className="ticketsTdAction">
-                    <button 
-                      className="btn btn-sm btn-link text-primary p-0 me-2" 
-                      onClick={() => setSelectedTicket(t)}
-                      title="View Details"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/>
-                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/>
-                      </svg>
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-link text-secondary p-0" 
-                      onClick={() => navigate(`/tickets/edit/${t.id}`)}
-                      title="Edit Ticket"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5h-2z"/>
-                        <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/>
-                      </svg>
-                    </button>
-                  </td>
+                  <th className="text-end pe-4">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pageItems.length > 0 ? (
+                  pageItems.map((t) => (
+                    <tr key={t.id}>
+                      {columns.map((col) => (
+                        <td key={col.key}>
+                          {columnCell(t, col)}
+                        </td>
+                      ))}
+                      <td className="text-end pe-4">
+                        <div className="d-flex justify-content-end gap-1">
+                           <button 
+                            className="btn btn-link text-secondary p-0 action-btn rounded-circle" 
+                            onClick={() => setSelectedTicket(t)}
+                            title="View Details"
+                          >
+                            <i className="bi bi-eye"></i>
+                          </button>
+                          <button 
+                            className="btn btn-link text-secondary p-0 action-btn rounded-circle" 
+                            onClick={() => navigate(`/tickets/edit/${t.id}`)}
+                            title="Edit Ticket"
+                          >
+                            <i className="bi bi-pencil"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                   <tr>
+                    <td colSpan={columns.length + 1} className="text-center py-5">
+                      <div className="d-flex flex-column align-items-center justify-content-center text-muted opacity-75">
+                        <i className="bi bi-inbox fs-1 mb-3"></i>
+                        <h6 className="fw-semibold mb-1">No tickets found</h6>
+                        <p className="small mb-0">Try adjusting your search or filters</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
-        <div className="d-flex justify-content-between align-items-center">
-          <div className="text-muted small">Showing {pageItems.length} of {tickets.length}</div>
-          <nav>
-            <ul className="pagination pagination-sm mb-0">
-              <li className={`page-item ${page === 1 ? 'disabled' : ''}`}>
-                <button className="page-link" onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
-              </li>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <li key={i} className={`page-item ${page === i + 1 ? 'active' : ''}`}>
-                  <button className="page-link" onClick={() => setPage(i + 1)}>{i + 1}</button>
+          
+          {/* Footer / Pagination */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-top bg-light bg-opacity-25">
+            <span className="text-muted small ps-2">
+              Showing <span className="fw-semibold text-dark">{pageItems.length}</span> of <span className="fw-semibold text-dark">{tickets.length}</span> tickets
+            </span>
+            
+            <nav>
+              <ul className="pagination pagination-custom mb-0">
+                <li className={`page-item ${page === 1 ? 'disabled' : ''}`}>
+                  <button className="page-link" onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
                 </li>
-              ))}
-              <li className={`page-item ${page === totalPages ? 'disabled' : ''}`}>
-                <button className="page-link" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
-              </li>
-            </ul>
-          </nav>
+                {Array.from({ length: totalPages }).map((_, i) => (
+                   <li key={i} className={`page-item ${page === i + 1 ? 'active' : ''}`}>
+                    <button className="page-link" onClick={() => setPage(i + 1)}>{i + 1}</button>
+                  </li>
+                ))}
+                <li className={`page-item ${page === totalPages ? 'disabled' : ''}`}>
+                  <button className="page-link" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                    <i className="bi bi-chevron-right"></i>
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
         </div>
       </div>
       
       {/* Ticket Details Drawer (Offcanvas) */}
       <div 
-        className={`offcanvas offcanvas-end ${selectedTicket ? 'show' : ''}`} 
+        className={`offcanvas offcanvas-end ticket-offcanvas ${selectedTicket ? 'show' : ''}`} 
         tabIndex="-1" 
-        style={{ visibility: selectedTicket ? 'visible' : 'hidden', width: '400px' }}
+        style={{ visibility: selectedTicket ? 'visible' : 'hidden' }}
       >
         <div className="offcanvas-header border-bottom">
           <h5 className="offcanvas-title">Ticket Details</h5>
@@ -303,167 +617,182 @@ function TicketList() {
           {selectedTicket && (
             <>
               {/* Tabs */}
-              <div className="d-flex gap-2 mb-3 border-bottom pb-2">
+              <div className="drawer-tabs">
                 <button 
-                    className={`btn btn-sm ${drawerTab === 'DETAILS' ? 'btn-primary' : 'btn-outline-primary'} flex-grow-1`}
+                    className={`drawer-tab-btn ${drawerTab === 'DETAILS' ? 'active' : ''}`}
                     onClick={() => setDrawerTab('DETAILS')}
                 >
                     DETAILS
                 </button>
                 <button 
-                    className={`btn btn-sm ${drawerTab === 'COMMENT' ? 'btn-primary' : 'btn-outline-primary'} flex-grow-1`}
+                    className={`drawer-tab-btn ${drawerTab === 'COMMENT' ? 'active' : ''}`}
                     onClick={() => setDrawerTab('COMMENT')}
                 >
-                    COMMENT
+                    COMMENTS
                 </button>
                 <button 
-                    className={`btn btn-sm ${drawerTab === 'CONVERSION' ? 'btn-primary' : 'btn-outline-primary'} flex-grow-1`}
+                    className={`drawer-tab-btn ${drawerTab === 'CONVERSION' ? 'active' : ''}`}
                     onClick={() => setDrawerTab('CONVERSION')}
                 >
-                    CONVERSION
+                    CONVERSATION
                 </button>
               </div>
 
+              <div className="p-3">
               {/* DETAILS Tab Content - Ticket Details Only */}
               {drawerTab === 'DETAILS' && (
                 <div className="d-flex flex-column gap-3">
                   {/* Basic Info Card */}
-                  <div className="card border-0 bg-light">
-                    <div className="card-body p-3">
-                      <h6 className="card-title fw-bold mb-3 text-primary">General Information</h6>
-                      <div className="mb-3">
-                        <label className="fw-bold d-block text-secondary small mb-1">Title</label>
-                        <div className="fs-6 fw-semibold">{selectedTicket.title}</div>
+                  <div className="info-card">
+                      <div className="d-flex justify-content-between align-items-start mb-3">
+                        <h6 className="card-title fw-bold text-primary mb-0">
+                            <i className="bi bi-info-circle me-2"></i>General Information
+                        </h6>
+                        <span className="badge bg-light text-secondary border font-monospace">{selectedTicket.id}</span>
                       </div>
+                      
+                      <div className="mb-4">
+                        <label className="info-label">Title</label>
+                        <div className="info-value fs-6 fw-semibold">{selectedTicket.title}</div>
+                      </div>
+                      
                       <div className="mb-0">
-                        <label className="fw-bold d-block text-secondary small mb-1">Description</label>
-                        <div className="p-2 bg-white rounded border text-secondary small" style={{ whiteSpace: 'pre-wrap' }}>{selectedTicket.description || 'No description provided.'}</div>
+                        <label className="info-label">Description</label>
+                        <div className="p-3 bg-light rounded-3 text-secondary small" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                            {selectedTicket.description || 'No description provided.'}
+                        </div>
                       </div>
-                    </div>
                   </div>
 
                   {/* Classification Card */}
-                  <div className="card border-0 bg-light">
-                    <div className="card-body p-3">
-                      <h6 className="card-title fw-bold mb-3 text-primary">Classification</h6>
-                      <div className="row g-3">
+                  <div className="info-card">
+                      <h6 className="card-title fw-bold mb-4 text-primary">
+                        <i className="bi bi-tags me-2"></i>Classification
+                      </h6>
+                      <div className="row g-4">
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Ticket ID</label>
-                          <div className="fs-6 font-monospace">{selectedTicket.id}</div>
-                        </div>
-                        <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Status</label>
+                          <label className="info-label"><i className="bi bi-activity"></i> Status</label>
                           <div>
                             <span className={`badge rounded-pill ${
                                 selectedTicket.status === 'Resolved' ? 'bg-success-subtle text-success-emphasis' :
                                 selectedTicket.status === 'In Progress' ? 'bg-info-subtle text-info-emphasis' :
                                 'bg-secondary-subtle text-secondary-emphasis'
-                              }`}>
+                              } px-3 py-2`}>
                                 {selectedTicket.status}
                             </span>
                           </div>
                         </div>
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Type</label>
-                          <div className="fs-6">{selectedTicket.type}</div>
-                        </div>
-                        <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Category</label>
-                          <div className="fs-6">{selectedTicket.category}</div>
-                        </div>
-                        <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Priority</label>
+                          <label className="info-label"><i className="bi bi-flag"></i> Priority</label>
                           <div>
                             <span className={`badge rounded-pill ${
                               selectedTicket.priority === 'High' ? 'bg-danger-subtle text-danger-emphasis' :
                               selectedTicket.priority === 'Medium' ? 'bg-warning-subtle text-warning-emphasis' :
                               'bg-secondary-subtle text-secondary-emphasis'
-                            }`}>
+                            } px-3 py-2`}>
                               {selectedTicket.priority}
                             </span>
                           </div>
                         </div>
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Department</label>
-                          <div className="fs-6">{selectedTicket.department}</div>
+                          <label className="info-label"><i className="bi bi-laptop"></i> Type</label>
+                          <div className="info-value">{selectedTicket.type}</div>
+                        </div>
+                        <div className="col-6">
+                          <label className="info-label"><i className="bi bi-grid"></i> Category</label>
+                          <div className="info-value">{selectedTicket.category}</div>
+                        </div>
+                        <div className="col-6">
+                          <label className="info-label"><i className="bi bi-building"></i> Department</label>
+                          <div className="info-value">{selectedTicket.department}</div>
                         </div>
                       </div>
-                    </div>
                   </div>
 
                   {/* People Card */}
-                  <div className="card border-0 bg-light">
-                    <div className="card-body p-3">
-                      <h6 className="card-title fw-bold mb-3 text-primary">People</h6>
-                      <div className="row g-3">
+                  <div className="info-card">
+                      <h6 className="card-title fw-bold mb-4 text-primary">
+                        <i className="bi bi-people me-2"></i>People
+                      </h6>
+                      <div className="row g-4">
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Employee</label>
-                          <div className="fs-6">{selectedTicket.employee_name || 'N/A'}</div>
-                          <small className="text-muted d-block">{selectedTicket.employee_id || ''}</small>
+                          <label className="info-label"><i className="bi bi-person"></i> Employee</label>
+                          <div className="info-value fw-semibold">{selectedTicket.employee_name || 'N/A'}</div>
+                          <small className="text-muted d-block small">{selectedTicket.employee_id || ''}</small>
                         </div>
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Assigned Agent</label>
-                          <div className="fs-6">{selectedTicket.assigned_agent || 'Unassigned'}</div>
+                          <label className="info-label"><i className="bi bi-headset"></i> Assigned Agent</label>
+                          <div className="d-flex align-items-center gap-2">
+                             {selectedTicket.assigned_agent ? (
+                                <>
+                                    <div className="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center" style={{width: 24, height: 24, fontSize: 10}}>
+                                        {selectedTicket.assigned_agent.charAt(0)}
+                                    </div>
+                                    <span className="info-value">{selectedTicket.assigned_agent}</span>
+                                  </>
+                             ) : (
+                                <span className="text-muted fst-italic">Unassigned</span>
+                             )}
+                          </div>
                         </div>
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Created By</label>
-                          <div className="fs-6 small">{selectedTicket.created_by || 'N/A'}</div>
+                          <label className="info-label">Created By</label>
+                          <div className="info-value small">{selectedTicket.created_by || 'N/A'}</div>
                         </div>
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Updated By</label>
-                          <div className="fs-6 small">{selectedTicket.updated_by || 'N/A'}</div>
+                          <label className="info-label">Updated By</label>
+                          <div className="info-value small">{selectedTicket.updated_by || 'N/A'}</div>
                         </div>
                       </div>
-                    </div>
                   </div>
 
                   {/* SLA & Metrics Card */}
-                  <div className="card border-0 bg-light">
-                    <div className="card-body p-3">
-                      <h6 className="card-title fw-bold mb-3 text-primary">SLA & Metrics</h6>
-                      <div className="row g-3">
+                  <div className="info-card">
+                      <h6 className="card-title fw-bold mb-4 text-primary">
+                        <i className="bi bi-speedometer2 me-2"></i>SLA & Metrics
+                      </h6>
+                      <div className="row g-4">
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">SLA Hours</label>
-                          <div className="fs-6">{selectedTicket.sla_hours || 'N/A'}</div>
+                          <label className="info-label">SLA Hours</label>
+                          <div className="info-value font-monospace">{selectedTicket.sla_hours || 'N/A'}</div>
                         </div>
                         <div className="col-6">
-                          <label className="fw-bold d-block text-secondary small mb-1">Resolution Time</label>
-                          <div className="fs-6">{selectedTicket.resolutionHours || 'N/A'}</div>
+                          <label className="info-label">Resolution Time</label>
+                          <div className="info-value font-monospace">{selectedTicket.resolutionHours || 'N/A'}</div>
                         </div>
                         <div className="col-12">
-                           <label className="fw-bold d-block text-secondary small mb-1">SLA Status</label>
+                           <label className="info-label">SLA Status</label>
                            <div>
                               {selectedTicket.slaBreached 
-                                ? <span className="badge bg-danger-subtle text-danger-emphasis">Breached</span> 
-                                : <span className="badge bg-success-subtle text-success-emphasis">Within SLA</span>
+                                ? <span className="badge bg-danger-subtle text-danger-emphasis px-3 py-2"><i className="bi bi-exclamation-triangle me-1"></i> Breached</span> 
+                                : <span className="badge bg-success-subtle text-success-emphasis px-3 py-2"><i className="bi bi-check-circle me-1"></i> Within SLA</span>
                               }
                            </div>
                         </div>
                       </div>
-                    </div>
                   </div>
 
                   {/* Timestamps Card */}
-                  <div className="card border-0 bg-light">
-                     <div className="card-body p-3">
-                        <h6 className="card-title fw-bold mb-3 text-primary">Timeline</h6>
-                        <div className="d-flex flex-column gap-2">
-                           <div className="d-flex justify-content-between">
-                              <span className="text-secondary small">Created</span>
-                              <span className="small fw-semibold">{formatDate(selectedTicket.createdAt)}</span>
-                           </div>
-                           <div className="d-flex justify-content-between">
-                              <span className="text-secondary small">Acknowledged</span>
-                              <span className="small fw-semibold">{formatDate(selectedTicket.acknowledged_at)}</span>
-                           </div>
-                           <div className="d-flex justify-content-between">
-                              <span className="text-secondary small">Resolved</span>
-                              <span className="small fw-semibold">{formatDate(selectedTicket.resolved_at)}</span>
-                           </div>
-                           <div className="d-flex justify-content-between">
-                              <span className="text-secondary small">Closed</span>
-                              <span className="small fw-semibold">{formatDate(selectedTicket.closed_at)}</span>
-                           </div>
+                  <div className="info-card">
+                     <h6 className="card-title fw-bold mb-4 text-primary">
+                        <i className="bi bi-clock-history me-2"></i>Timeline
+                     </h6>
+                     <div className="d-flex flex-column gap-3">
+                        <div className="d-flex justify-content-between align-items-center">
+                           <span className="text-secondary small fw-medium">Created</span>
+                           <span className="small fw-semibold bg-light px-2 py-1 rounded">{formatDate(selectedTicket.createdAt)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                           <span className="text-secondary small fw-medium">Acknowledged</span>
+                           <span className="small fw-semibold bg-light px-2 py-1 rounded">{formatDate(selectedTicket.acknowledged_at)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                           <span className="text-secondary small fw-medium">Resolved</span>
+                           <span className="small fw-semibold bg-light px-2 py-1 rounded">{formatDate(selectedTicket.resolved_at)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                           <span className="text-secondary small fw-medium">Closed</span>
+                           <span className="small fw-semibold bg-light px-2 py-1 rounded">{formatDate(selectedTicket.closed_at)}</span>
                         </div>
                      </div>
                   </div>
@@ -472,17 +801,19 @@ function TicketList() {
                     <div className="dropdown w-100">
                       <button 
                         type="button" 
-                        className="btn btn-primary w-100 dropdown-toggle d-flex justify-content-between align-items-center" 
+                        className="btn btn-primary w-100 dropdown-toggle d-flex justify-content-between align-items-center py-2" 
                         onClick={() => setShowStatusDropdown(!showStatusDropdown)}
                         aria-expanded={showStatusDropdown}
                       >
-                        {selectedTicket.status === 'Resolved' ? 'Completed' : selectedTicket.status}
+                        <span className="fw-semibold">
+                            {selectedTicket.status === 'Resolved' ? 'Completed' : selectedTicket.status}
+                        </span>
                       </button>
                       {showStatusDropdown && (
-                        <ul className="dropdown-menu w-100 show" style={{ position: 'absolute', top: '100%', marginTop: '5px' }}>
-                          <li><button className="dropdown-item" type="button" onClick={() => handleStatusChange('In Progress')}>In Progress</button></li>
-                          <li><button className="dropdown-item" type="button" onClick={() => handleStatusChange('Feedback Awaiting')}>Feedback Awaiting</button></li>
-                          <li><button className="dropdown-item" type="button" onClick={() => handleStatusChange('Resolved')}>Completed</button></li>
+                        <ul className="dropdown-menu w-100 show shadow border-0 mt-1 rounded-3 overflow-hidden">
+                          <li><button className="dropdown-item py-2" type="button" onClick={() => handleStatusChange('In Progress')}>In Progress</button></li>
+                          <li><button className="dropdown-item py-2" type="button" onClick={() => handleStatusChange('Feedback Awaiting')}>Feedback Awaiting</button></li>
+                          <li><button className="dropdown-item py-2" type="button" onClick={() => handleStatusChange('Resolved')}>Completed</button></li>
                         </ul>
                       )}
                     </div>
@@ -494,18 +825,21 @@ function TicketList() {
               {drawerTab === 'COMMENT' && (
                 <div className="d-flex flex-column gap-3">
                     {selectedTicket.comments && selectedTicket.comments.length > 0 ? (
-                        <div className="position-relative ps-3">
+                        <div className="position-relative ps-3 pt-2">
                             {/* Timeline line */}
-                            <div className="position-absolute top-0 bottom-0 start-0 border-start border-2 ms-2" style={{ borderColor: '#e9ecef' }}></div>
+                            <div className="timeline-line"></div>
                             
                             {selectedTicket.comments.map((comment, index) => (
-                                <div key={index} className="position-relative mb-4 ms-2">
+                                <div key={index} className="timeline-item">
                                     {/* Timeline dot */}
-                                    <div className="position-absolute top-0 start-0 translate-middle rounded-circle bg-white border border-2 border-primary" style={{ width: '12px', height: '12px', left: '-10px', marginTop: '1.2rem' }}></div>
+                                    <div className="timeline-dot"></div>
                                     
                                     <div className="card border-0 shadow-sm rounded-3">
                                         <div className="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                                             <div className="d-flex align-items-center gap-2">
+                                                <div className="bg-light rounded-circle d-flex align-items-center justify-content-center text-primary fw-bold" style={{width: 24, height: 24, fontSize: 10}}>
+                                                    {(comment.changed_by || 'U').charAt(0)}
+                                                </div>
                                                 <span className="fw-bold text-dark small">{comment.changed_by}</span>
                                                 <span className="text-muted small" style={{ fontSize: '0.75rem' }}>• {formatDate(comment.changed_at)}</span>
                                             </div>
@@ -518,7 +852,7 @@ function TicketList() {
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="card-body pt-2 pb-3">
+                                        <div className="card-body pt-2 pb-3 ps-5">
                                             <p className="mb-0 text-secondary small" style={{ whiteSpace: 'pre-wrap' }}>{comment.comment}</p>
                                         </div>
                                     </div>
@@ -528,9 +862,7 @@ function TicketList() {
                     ) : (
                         <div className="text-center py-5">
                             <div className="mb-3 text-muted opacity-25">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.697 1.502 1.502 0 0 0-.431-1.61c-1.258-1.26-1.996-2.91-1.996-4.558 0-4.102 3.864-7.393 8.981-7.393 5.118 0 8.981 3.29 8.981 7.393 0 4.103-3.863 7.393-8.981 7.393-1.615 0-3.128-.328-4.43-1.033a1.501 1.501 0 0 0-1.558.17l-.873.578z"/>
-                                </svg>
+                                <i className="bi bi-chat-square-text fs-1"></i>
                             </div>
                             <h6 className="text-muted fw-semibold">No comments yet</h6>
                             <p className="text-secondary small mb-0">Status changes and notes will appear here.</p>
@@ -556,7 +888,7 @@ function TicketList() {
                                                     width: '32px', 
                                                     height: '32px', 
                                                     fontSize: '0.75rem',
-                                                    backgroundColor: isUser ? '#0d6efd' : '#6c757d' 
+                                                    backgroundColor: isUser ? '#4f46e5' : '#64748b' 
                                                 }}
                                             >
                                                 {isUser ? 'U' : 'A'}
@@ -567,7 +899,7 @@ function TicketList() {
                                                 className={`p-3 ${
                                                     isUser 
                                                         ? 'bg-primary text-white rounded-4 rounded-end-0 shadow-sm' 
-                                                        : 'bg-light text-dark rounded-4 rounded-start-0'
+                                                        : 'bg-white text-dark rounded-4 rounded-start-0 border shadow-sm'
                                                 }`}
                                                 style={{ maxWidth: '80%' }}
                                             >
@@ -583,9 +915,7 @@ function TicketList() {
                         ) : (
                             <div className="text-center py-5">
                                 <div className="mb-3 text-muted opacity-25">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M8 15c4.418 0 8-3.134 8-7s-3.582-7-8-7-8 3.134-8 7c0 1.76.743 3.37 1.97 4.6-.097 1.016-.417 2.13-.771 2.966-.079.186.074.394.273.362 2.256-.37 3.597-.938 4.18-1.234A9.06 9.06 0 0 0 8 15z"/>
-                                    </svg>
+                                    <i className="bi bi-chat-dots fs-1"></i>
                                 </div>
                                 <h6 className="text-muted fw-semibold">No conversation history</h6>
                                 <p className="text-secondary small mb-0">Chat history with the assistant will appear here.</p>
@@ -594,6 +924,7 @@ function TicketList() {
                     </div>
                 </div>
               )}
+              </div>
             </>
           )}
         </div>
@@ -724,7 +1055,88 @@ function TicketList() {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Create Ticket Modal */}
+      {showCreateModal && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }} tabIndex="-1" role="dialog">
+            <div className="modal-dialog modal-lg modal-dialog-centered">
+              <div className="modal-content border-0 shadow-lg rounded-4">
+                <div className="modal-header border-bottom p-4">
+                  <h5 className="modal-title fw-bold text-dark">Create New Ticket</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowCreateModal(false)}></button>
+                </div>
+                <div className="modal-body p-4">
+                  <form onSubmit={handleCreateTicket}>
+                    <div className="mb-4">
+                      <label className="form-label fw-bold text-secondary small text-uppercase">Title <span className="text-danger">*</span></label>
+                      <input 
+                        type="text" 
+                        className="form-control form-control-lg bg-light border-0" 
+                        placeholder="Brief summary of the issue"
+                        required
+                        value={newTicket.title}
+                        onChange={(e) => setNewTicket({...newTicket, title: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div className="row g-4 mb-4">
+                        <div className="col-md-4">
+                            <label className="form-label fw-bold text-secondary small text-uppercase">Type <span className="text-danger">*</span></label>
+                            <select 
+                                className="form-select bg-light border-0" 
+                                value={newTicket.type}
+                                onChange={handleNewTicketTypeChange}
+                            >
+                                {TICKET_TYPE_CATALOG.map(t => <option key={t.type} value={t.type}>{t.type}</option>)}
+                            </select>
+                        </div>
+                        <div className="col-md-4">
+                            <label className="form-label fw-bold text-secondary small text-uppercase">Category <span className="text-danger">*</span></label>
+                            <select 
+                                className="form-select bg-light border-0"
+                                value={newTicket.category}
+                                onChange={(e) => setNewTicket({...newTicket, category: e.target.value})}
+                            >
+                                {TICKET_TYPE_CATALOG.find(t => t.type === newTicket.type)?.categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                         <div className="col-md-4">
+                            <label className="form-label fw-bold text-secondary small text-uppercase">Priority <span className="text-danger">*</span></label>
+                            <select 
+                                className="form-select bg-light border-0"
+                                value={newTicket.priority}
+                                onChange={(e) => setNewTicket({...newTicket, priority: e.target.value})}
+                            >
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="form-label fw-bold text-secondary small text-uppercase">Description <span className="text-danger">*</span></label>
+                      <textarea 
+                        className="form-control bg-light border-0" 
+                        rows="6" 
+                        placeholder="Detailed description of the problem..."
+                        required
+                        value={newTicket.description}
+                        onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
+                      ></textarea>
+                    </div>
+
+                    <div className="d-flex justify-content-end gap-2 pt-2">
+                        <button type="button" className="btn btn-light border px-4" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                        <button type="submit" className="btn btn-primary px-4 fw-semibold">Create Ticket</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+      )}
     </div>
   );
 }
