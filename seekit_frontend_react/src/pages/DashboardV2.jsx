@@ -4,6 +4,7 @@ import ReactECharts from 'echarts-for-react';
 import { motion } from 'framer-motion';
 import CountUp from 'react-countup';
 import * as echarts from 'echarts';
+import { mockVendors, mockSubscriptions } from '../data/mockContractData';
 
 const DashboardV2 = () => {
   const { tickets, loading, error } = useGlobalFilters();
@@ -299,6 +300,59 @@ const DashboardV2 = () => {
       }
     ]
   });
+
+  // --- CONTRACT METRICS ---
+  const contractMetrics = useMemo(() => {
+    const totalCost = mockSubscriptions.reduce((sum, sub) => sum + (sub.status !== 'Expired' ? sub.total_cost : 0), 0);
+    const activeCount = mockSubscriptions.filter(s => s.status === 'Active').length;
+    const expiringCount = mockSubscriptions.filter(s => s.status === 'Expiring Soon').length;
+    const expiredCount = mockSubscriptions.filter(s => s.status === 'Expired').length;
+    
+    // Spend by Vendor
+    const spendByVendor = {};
+    mockSubscriptions.forEach(sub => {
+      const vendor = mockVendors.find(v => v.vendor_id === sub.vendor_id);
+      const name = vendor ? vendor.vendor_name : 'Unknown';
+      if (!spendByVendor[name]) spendByVendor[name] = 0;
+      spendByVendor[name] += sub.total_cost;
+    });
+    const vendorChartData = Object.entries(spendByVendor).map(([name, value]) => ({ name, value }));
+
+    return { totalCost, activeCount, expiringCount, expiredCount, vendorChartData };
+  }, []);
+
+  const vendorPieOption = {
+    tooltip: { trigger: 'item' },
+    legend: { bottom: '0%', left: 'center' },
+    series: [
+      {
+        name: 'Cost by Vendor',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+        label: { show: false, position: 'center' },
+        emphasis: { label: { show: true, fontSize: '18', fontWeight: 'bold' } },
+        data: contractMetrics.vendorChartData
+      }
+    ]
+  };
+  
+  const expiryBarOption = {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'category', data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'] }, 
+      yAxis: { type: 'value' },
+      series: [
+        {
+          name: 'Expiring Contracts',
+          type: 'bar',
+          barWidth: '60%',
+          data: [1, 2, 0, 1, 3, 1], 
+          itemStyle: { color: '#ef4444' }
+        }
+      ]
+  };
 
 
   if (loading) return <div className="d-flex justify-content-center align-items-center vh-100"><div className="spinner-border text-primary"></div></div>;
@@ -659,6 +713,70 @@ const DashboardV2 = () => {
                     </table>
                 </div>
             </div>
+        </div>
+      </div>
+
+      {/* LAYER 8: CONTRACTS & SUBSCRIPTIONS */}
+      <div className="row g-3 mt-2">
+        <div className="col-12">
+           <h5 className="fw-bold text-dark mb-3">Contracts & Subscriptions</h5>
+        </div>
+        {/* KPI Cards */}
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <h6 className="text-muted text-uppercase small fw-bold mb-2">Total Annual Spend</h6>
+              <h3 className="fw-bold text-primary mb-0">
+                 <CountUp end={contractMetrics.totalCost} prefix="$" separator="," duration={2} />
+              </h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <h6 className="text-muted text-uppercase small fw-bold mb-2">Active Contracts</h6>
+              <h3 className="fw-bold text-success mb-0">{contractMetrics.activeCount}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <h6 className="text-muted text-uppercase small fw-bold mb-2">Expiring (90 Days)</h6>
+              <h3 className="fw-bold text-warning mb-0">{contractMetrics.expiringCount}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <h6 className="text-muted text-uppercase small fw-bold mb-2">Expired</h6>
+              <h3 className="fw-bold text-danger mb-0">{contractMetrics.expiredCount}</h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Charts */}
+        <div className="col-md-6">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-header bg-white border-bottom-0 pt-4 px-4">
+              <h5 className="fw-bold mb-0">Spend by Vendor</h5>
+            </div>
+            <div className="card-body">
+              <ReactECharts option={vendorPieOption} style={{ height: '300px' }} />
+            </div>
+          </div>
+        </div>
+        <div className="col-md-6">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-header bg-white border-bottom-0 pt-4 px-4">
+              <h5 className="fw-bold mb-0">Upcoming Expiries</h5>
+            </div>
+            <div className="card-body">
+              <ReactECharts option={expiryBarOption} style={{ height: '300px' }} />
+            </div>
+          </div>
         </div>
       </div>
     </div>

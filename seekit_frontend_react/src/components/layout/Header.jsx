@@ -43,6 +43,13 @@ function Header({ onLogout }) {
             Assets
           </NavLink>
           <NavLink 
+            to="/contracts" 
+            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          >
+            <i className="bi bi-receipt"></i>
+            Contracts
+          </NavLink>
+          <NavLink 
             to="/users" 
             className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           >
