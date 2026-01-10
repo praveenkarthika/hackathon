@@ -185,6 +185,7 @@ function TicketList() {
   };
 
   return (
+    <div className="container-xxl p-4">
     <div className="card">
       <div className="card-body">
         <div className="d-flex align-items-center justify-content-between mb-3">
@@ -723,6 +724,7 @@ function TicketList() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

@@ -23,6 +23,14 @@ function Header({ onLogout }) {
             Dashboard
           </NavLink>
           <NavLink 
+            to="/dashboard-v2" 
+            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          >
+            <i className="bi bi-graph-up-arrow"></i>
+            Dashboard 2.0
+            <span className="badge bg-primary rounded-pill ms-2" style={{ fontSize: '0.6rem' }}>NEW</span>
+          </NavLink>
+          <NavLink 
             to="/tickets" 
             className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           >

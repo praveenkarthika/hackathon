@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Dashboard from './pages/Dashboard.jsx';
+import DashboardV2 from './pages/DashboardV2.jsx';
 import TicketList from './pages/TicketList.jsx';
 import EditTicket from './pages/EditTicket.jsx';
 import Header from './components/layout/Header.jsx';
@@ -48,10 +49,11 @@ function App() {
     <div className="d-flex flex-column min-vh-100 bg-body">
       <Header onLogout={handleLogout} />
       
-      <main className="flex-grow-1 overflow-auto p-4 container-xxl">
+      <main className="flex-grow-1 overflow-auto bg-body">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard-v2" element={<DashboardV2 />} />
           <Route path="/tickets" element={<TicketList />} />
           <Route path="/tickets/edit/:ticketId" element={<EditTicket />} />
           {/* Redirect any unknown route to dashboard if authenticated */}

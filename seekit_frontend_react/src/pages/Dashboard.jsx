@@ -83,13 +83,7 @@ function Dashboard() {
 
   return (
     <div className="container-fluid p-4 bg-light min-vh-100">
-      {/* Header Tabs */}
-      <div className="mb-4">
-        <div className="btn-group" role="group">
-          <button type="button" className="btn btn-primary fw-bold px-4">Operations</button>
-          <button type="button" className="btn btn-light text-primary fw-bold px-4 bg-white border">Statistics</button>
-        </div>
-      </div>
+
 
       {/* Filters Row */}
       <div className="row g-3 align-items-center mb-4">
@@ -131,11 +125,7 @@ function Dashboard() {
             </select>
           </div>
         </div>
-        <div className="col-auto">
-          <button className="btn btn-outline-success d-flex align-items-center bg-white">
-            <span className="me-1">✓</span> APPLY
-          </button>
-        </div>
+
       </div>
 
       {/* KPI Cards */}
