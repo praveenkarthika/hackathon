@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import DashboardV2 from './pages/DashboardV2.jsx';
 import TicketList from './pages/TicketList.jsx';
+import AssetList from './pages/AssetList.jsx';
 import UserList from './pages/UserList.jsx';
 import EditTicket from './pages/EditTicket.jsx';
 import Header from './components/layout/Header.jsx';
@@ -56,6 +57,7 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard-v2" replace />} />
             <Route path="/dashboard-v2" element={<DashboardV2 />} />
             <Route path="/tickets" element={<TicketList />} />
+            <Route path="/assets" element={<AssetList />} />
             <Route path="/users" element={<UserList />} />
             <Route path="/tickets/edit/:ticketId" element={<EditTicket />} />
             {/* Redirect any unknown route to dashboard if authenticated */}

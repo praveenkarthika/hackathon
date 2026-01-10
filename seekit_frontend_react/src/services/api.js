@@ -97,4 +97,8 @@ export const fetchUsers = async () => {
   return apiRequest('/get_users');
 };
 
+export const fetchAssets = async () => {
+  return apiRequest('/get_assets');
+};
+
 export default apiRequest;

@@ -1,5 +1,95 @@
 // Data matching the Service Desk screenshot exactly
 
+export const assetList = [
+  {
+    id: 'AST-1001',
+    name: 'MacBook Pro 16"',
+    type: 'Laptop',
+    brand: 'Apple',
+    model: 'MacBook Pro M1 Max',
+    serial_number: 'C02XYZ123ABC',
+    assigned_user: 'John Doe',
+    location: 'Headquarters',
+    status: 'In Use',
+    purchase_date: '2023-01-15',
+    warranty_expiry: '2026-01-15',
+    value: 2499.00
+  },
+  {
+    id: 'AST-1002',
+    name: 'Dell PowerEdge R740',
+    type: 'Server',
+    brand: 'Dell',
+    model: 'PowerEdge R740',
+    serial_number: 'SV-987654321',
+    assigned_user: 'IT Dept',
+    location: 'Server Room A',
+    status: 'In Use',
+    purchase_date: '2022-06-10',
+    warranty_expiry: '2025-06-10',
+    value: 5500.00,
+    history: [
+       { action: 'Asset Created', date: '2022-06-10', description: 'Asset registered in the system.' }
+    ]
+  },
+  {
+    id: 'AST-1003',
+    name: 'ThinkPad X1 Carbon',
+    type: 'Laptop',
+    brand: 'Lenovo',
+    model: 'X1 Carbon Gen 10',
+    serial_number: 'LNV-4567890',
+    assigned_user: 'Jane Smith',
+    location: 'Remote',
+    status: 'In Use',
+    purchase_date: '2023-03-22',
+    warranty_expiry: '2026-03-22',
+    value: 1899.00
+  },
+  {
+    id: 'AST-1004',
+    name: 'Cisco Catalyst 9200',
+    type: 'Network',
+    brand: 'Cisco',
+    model: 'C9200-48P',
+    serial_number: 'CSCO-112233',
+    assigned_user: 'IT Dept',
+    location: 'Network Closet 2',
+    status: 'Maintenance',
+    purchase_date: '2021-11-05',
+    warranty_expiry: '2024-11-05',
+    value: 3200.00
+  },
+  {
+    id: 'AST-1005',
+    name: 'Samsung 34" Monitor',
+    type: 'Monitor',
+    brand: 'Samsung',
+    model: 'SJ55W',
+    serial_number: 'SAM-MON-7788',
+    assigned_user: 'Design Team',
+    location: 'Headquarters',
+    status: 'In Stock',
+    purchase_date: '2023-08-14',
+    warranty_expiry: '2026-08-14',
+    value: 349.00
+  },
+  {
+    id: 'AST-1006',
+    name: 'iPhone 14 Pro',
+    type: 'Mobile',
+    brand: 'Apple',
+    model: 'iPhone 14 Pro 256GB',
+    serial_number: 'IPH-998877',
+    assigned_user: 'CEO',
+    location: 'Headquarters',
+    status: 'In Use',
+    purchase_date: '2023-09-20',
+    warranty_expiry: '2024-09-20',
+    value: 1099.00
+  }
+];
+
 export const benchmarkData = {
   score: 50,
   sparkline: [
