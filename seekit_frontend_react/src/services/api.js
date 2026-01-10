@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://172.32.4.92:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.32.4.92:8000/api';
 
 // Helper to get token
 const getToken = () => localStorage.getItem('token');
@@ -21,7 +21,13 @@ const apiRequest = async (endpoint, options = {}) => {
     headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  } catch (error) {
+    console.error(`API connection failed for ${endpoint}:`, error);
+    throw new Error(`Connection failed: Unable to reach ${API_BASE_URL}. Please check your network or server status.`);
+  }
   
   // Handle 401 Unauthorized (token expired/invalid)
   if (response.status === 401) {

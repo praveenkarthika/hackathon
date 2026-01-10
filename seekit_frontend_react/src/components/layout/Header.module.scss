@@ -41,8 +41,8 @@
   
   &:focus-within {
     background-color: #ffffff;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    border-color: rgba(26, 27, 103, 0.867);
+    box-shadow: 0 0 0 3px rgba(26, 27, 103, 0.1);
   }
 }
 
@@ -72,7 +72,7 @@
   
   &:hover {
     transform: scale(1.05);
-    box-shadow: 0 0 0 2px #6366f1;
+    box-shadow: 0 0 0 2px rgba(26, 27, 103, 0.867);
   }
   
   img {
@@ -118,7 +118,7 @@
   
   &.active {
     color: #ffffff;
-    background-color: #1a1b67dd;
+    background-color: rgba(26, 27, 103, 0.867);
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
   }
 }

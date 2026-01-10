@@ -33,12 +33,21 @@ function TicketList() {
   const navigate = useNavigate();
   const { filteredTickets, resolveTicket, updateTicket, createTicket, loading, error } = useGlobalFilters();
   const query = useQuery();
-  const [localFilter, setLocalFilter] = useState({ status: 'All', type: 'All', category: 'All', priority: 'All', searchId: '' });
+  const [localFilter, setLocalFilter] = useState({ status: 'All', type: 'All', category: 'All', priority: 'All', searchId: '', slaBreached: false });
   const [sort, setSort] = useState({ key: 'createdAt', dir: 'desc' });
   const [page, setPage] = useState(1);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [drawerTab, setDrawerTab] = useState('DETAILS'); // New state for drawer tabs
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const stats = useMemo(() => {
+    return {
+      total: filteredTickets.length,
+      open: filteredTickets.filter(t => t.status === 'Open').length,
+      highPriority: filteredTickets.filter(t => t.priority === 'High').length,
+      slaBreached: filteredTickets.filter(t => t.slaBreached).length
+    };
+  }, [filteredTickets]);
   const [newTicket, setNewTicket] = useState({
     title: '',
     description: '',
@@ -89,6 +98,9 @@ function TicketList() {
     }
     if (localFilter.priority !== 'All') {
       t = t.filter((x) => x.priority === localFilter.priority);
+    }
+    if (localFilter.slaBreached) {
+      t = t.filter((x) => x.slaBreached);
     }
     const sorted = [...t].sort((a, b) => {
       const va = a[sort.key];
@@ -237,6 +249,49 @@ function TicketList() {
   return (
     <div className="container-fluid p-4 bg-light min-vh-100">
       <style>{`
+        .approach-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        .approach-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-color: rgba(26, 27, 103, 0.3);
+        }
+        .approach-card.active {
+            border-color: rgba(26, 27, 103, 0.867);
+            background-color: rgba(26, 27, 103, 0.02);
+        }
+        .approach-card .card-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .approach-card .card-label {
+            color: #64748b;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .approach-card .card-value {
+            color: #0f172a;
+            font-size: 1.875rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
         .search-input-group {
           position: relative;
         }
@@ -255,8 +310,8 @@ function TicketList() {
           box-shadow: none;
         }
         .search-input:focus {
-          border-color: #4f46e5;
-          box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+          border-color: rgba(26, 27, 103, 0.867);
+          box-shadow: 0 0 0 2px rgba(26, 27, 103, 0.1);
         }
         .filter-select {
           border-radius: 8px;
@@ -265,8 +320,8 @@ function TicketList() {
           cursor: pointer;
         }
         .filter-select:focus {
-          border-color: #4f46e5;
-          box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+          border-color: rgba(26, 27, 103, 0.867);
+          box-shadow: 0 0 0 2px rgba(26, 27, 103, 0.1);
         }
         .table-custom {
           margin-bottom: 0;
@@ -300,7 +355,7 @@ function TicketList() {
         }
         .ticketsIdLink {
           font-family: 'Monaco', 'Consolas', monospace;
-          color: #4f46e5;
+          color: rgba(26, 27, 103, 0.867);
           font-weight: 600;
           cursor: pointer;
         }
@@ -321,9 +376,9 @@ function TicketList() {
           transition: all 0.2s;
         }
         .pagination-custom .page-item.active .page-link {
-          background-color: #4f46e5;
+          background-color: rgba(26, 27, 103, 0.867);
           color: white;
-          box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+          box-shadow: 0 2px 4px rgba(26, 27, 103, 0.2);
         }
         .pagination-custom .page-item.disabled .page-link {
           color: #cbd5e1;
@@ -331,7 +386,7 @@ function TicketList() {
         }
         .pagination-custom .page-link:hover:not(.active) {
           background-color: #e2e8f0;
-          color: #0f172a;
+          color: rgba(26, 27, 103, 0.867);
         }
         .action-btn {
           width: 32px;
@@ -357,7 +412,7 @@ function TicketList() {
         }
         .ticket-offcanvas .offcanvas-title {
           font-weight: 700;
-          color: #0f172a;
+          color: rgba(26, 27, 103, 0.867);
           font-size: 1.125rem;
         }
         .ticket-offcanvas .offcanvas-body {
@@ -388,10 +443,10 @@ function TicketList() {
           transition: all 0.2s;
         }
         .drawer-tab-btn:hover {
-          color: #4f46e5;
+          color: rgba(26, 27, 103, 0.867);
         }
         .drawer-tab-btn.active {
-          color: #4f46e5;
+          color: rgba(26, 27, 103, 0.867);
         }
         .drawer-tab-btn.active::after {
           content: '';
@@ -400,7 +455,7 @@ function TicketList() {
           left: 0;
           width: 100%;
           height: 2px;
-          background-color: #4f46e5;
+          background-color: rgba(26, 27, 103, 0.867);
           border-radius: 2px 2px 0 0;
         }
         
@@ -428,7 +483,7 @@ function TicketList() {
           gap: 0.375rem;
         }
         .info-value {
-          color: #0f172a;
+          color: rgba(26, 27, 103, 0.867);
           font-size: 0.9375rem;
           font-weight: 500;
           line-height: 1.5;
@@ -456,8 +511,51 @@ function TicketList() {
             height: 12px;
             border-radius: 50%;
             background-color: #fff;
-            border: 2px solid #4f46e5;
+            border: 2px solid rgba(26, 27, 103, 0.867);
             z-index: 1;
+        }
+        .approach-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        .approach-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-color: rgba(26, 27, 103, 0.3);
+        }
+        .approach-card.active {
+            border-color: rgba(26, 27, 103, 0.867);
+            background-color: rgba(26, 27, 103, 0.02);
+        }
+        .approach-card .card-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .approach-card .card-label {
+            color: #64748b;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .approach-card .card-value {
+            color: #0f172a;
+            font-size: 1.875rem;
+            font-weight: 700;
+            line-height: 1.2;
         }
       `}</style>
 
@@ -505,6 +603,58 @@ function TicketList() {
             >
               {ticketTypeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
+          </div>
+        </div>
+
+        {/* Approach Cards */}
+        <div className="row g-4">
+          <div className="col-md-3">
+            <div 
+              className={`approach-card ${localFilter.status === 'All' && localFilter.priority === 'All' && !localFilter.slaBreached ? 'active' : ''}`}
+              onClick={() => setLocalFilter({ status: 'All', type: 'All', category: 'All', priority: 'All', searchId: '', slaBreached: false })}
+            >
+              <div className="card-icon-wrapper bg-primary-subtle text-primary">
+                <i className="bi bi-ticket-detailed"></i>
+              </div>
+              <div className="card-label">Total Tickets</div>
+              <div className="card-value">{stats.total}</div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div 
+              className={`approach-card ${localFilter.status === 'Open' ? 'active' : ''}`}
+              onClick={() => setLocalFilter(prev => ({ ...prev, status: 'Open', slaBreached: false }))}
+            >
+              <div className="card-icon-wrapper bg-info-subtle text-info">
+                <i className="bi bi-hourglass-split"></i>
+              </div>
+              <div className="card-label">Open Tickets</div>
+              <div className="card-value">{stats.open}</div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div 
+              className={`approach-card ${localFilter.priority === 'High' ? 'active' : ''}`}
+              onClick={() => setLocalFilter(prev => ({ ...prev, priority: 'High', slaBreached: false }))}
+            >
+              <div className="card-icon-wrapper bg-warning-subtle text-warning">
+                <i className="bi bi-exclamation-triangle"></i>
+              </div>
+              <div className="card-label">High Priority</div>
+              <div className="card-value">{stats.highPriority}</div>
+            </div>
+          </div>
+          <div className="col-md-3">
+            <div 
+              className={`approach-card ${localFilter.slaBreached ? 'active' : ''}`}
+              onClick={() => setLocalFilter(prev => ({ ...prev, slaBreached: true, status: 'All' }))}
+            >
+              <div className="card-icon-wrapper bg-danger-subtle text-danger">
+                <i className="bi bi-alarm"></i>
+              </div>
+              <div className="card-label">SLA Breached</div>
+              <div className="card-value">{stats.slaBreached}</div>
+            </div>
           </div>
         </div>
 

@@ -35,6 +35,13 @@ function Header({ onLogout }) {
             <i className="bi bi-ticket-perforated"></i>
             Tickets
           </NavLink>
+          <NavLink 
+            to="/users" 
+            className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          >
+            <i className="bi bi-people"></i>
+            Users
+          </NavLink>
         </nav>
       </div>
 
@@ -110,6 +117,14 @@ function Header({ onLogout }) {
             >
               <i className="bi bi-ticket-perforated me-2"></i>
               Tickets
+            </NavLink>
+            <NavLink 
+              to="/users" 
+              className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''} px-2 py-2`}
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <i className="bi bi-people me-2"></i>
+              Users
             </NavLink>
           </nav>
         </div>
