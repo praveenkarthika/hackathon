@@ -1,0 +1,124 @@
+.header {
+  height: 64px;
+  background-color: #ffffff;
+  color: #334155;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.menuBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.25rem;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  
+  &:hover {
+    background-color: #f1f5f9;
+    color: #334155;
+  }
+}
+
+.searchBox {
+  background-color: #f1f5f9;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  width: 320px;
+  transition: all 0.2s;
+  
+  &:focus-within {
+    background-color: #ffffff;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  }
+}
+
+.searchInput {
+  background: transparent;
+  border: none;
+  color: #334155;
+  font-size: 0.9rem;
+  width: 100%;
+  outline: none;
+  margin-left: 8px;
+  
+  &::placeholder {
+    color: #94a3b8;
+  }
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 0 0 1px #cbd5e1;
+  transition: transform 0.2s;
+  
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 2px #6366f1;
+  }
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background-color: #f1f5f9;
+    color: #334155;
+  }
+}
+
+.navLink {
+  color: #64748b;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  
+  &:hover {
+    color: #334155;
+    background-color: #f1f5f9;
+  }
+  
+  &.active {
+    color: #ffffff;
+    background-color: #1a1b67dd;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+}
