@@ -69,6 +69,14 @@ function TicketList() {
   const [confirmComment, setConfirmComment] = useState('');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
   const pageSize = 10;
 
   const ticketTypeOptions = useMemo(() => ['All', ...TICKET_TYPE_CATALOG.map((x) => x.type)], []);
@@ -310,6 +318,19 @@ function TicketList() {
 
   return (
     <div className="container-fluid p-4 bg-light min-vh-100">
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="position-fixed top-0 end-0 p-3" style={{ zIndex: 1100 }}>
+          <div className={`toast show align-items-center text-white bg-${toast.type === 'success' ? 'success' : 'danger'} border-0`} role="alert" aria-live="assertive" aria-atomic="true">
+            <div className="d-flex">
+              <div className="toast-body">
+                {toast.message}
+              </div>
+              <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={() => setToast(prev => ({ ...prev, show: false }))} aria-label="Close"></button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         .approach-card {
             background: #fff;
@@ -1206,8 +1227,8 @@ function TicketList() {
       {editingTicket && (
         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1055 }} tabIndex="-1" role="dialog">
             <div className="modal-dialog modal-lg modal-dialog-centered">
-              <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                <div className="modal-header border-bottom p-4 border-top border-4" style={{ borderColor: 'rgba(26, 27, 103, 0.867)', backgroundColor: 'rgba(26, 27, 103, 0.03)' }}>
+              <div className="modal-content border-0 shadow-lg rounded-4">
+                <div className="modal-header border-bottom p-4 border-top border-4 rounded-top-4" style={{ borderColor: 'rgba(26, 27, 103, 0.867)', backgroundColor: 'rgba(26, 27, 103, 0.03)' }}>
                   <div className="d-flex align-items-center gap-3">
                     <div className="text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: 48, height: 48, backgroundColor: 'rgba(26, 27, 103, 0.867)' }}>
                         <i className="bi bi-pencil-square fs-4"></i>
@@ -1223,7 +1244,7 @@ function TicketList() {
                   </div>
                   <button type="button" className="btn-close" onClick={() => setEditingTicket(null)}></button>
                 </div>
-                <div className="modal-body p-4">
+                <div className="modal-body p-4 rounded-bottom-4">
                   <form id="editTicketForm" onSubmit={async (e) => {
                       e.preventDefault();
                       const formData = new FormData(e.target);
@@ -1233,6 +1254,7 @@ function TicketList() {
                         description: formData.get('description'),
                         status: formData.get('status'),
                         priority: formData.get('priority'),
+                        assigned_agent: formData.get('assigned_agent'),
                         type: editingTicket.type,
                         category: editingTicket.category
                       };
@@ -1338,6 +1360,7 @@ function TicketList() {
                         </label>
                         <input 
                             type="text"
+                            name="assigned_agent"
                             className="form-control bg-light border-0 shadow-none" 
                             placeholder="Search by name or email..."
                             value={userSearchQuery}
@@ -1354,9 +1377,12 @@ function TicketList() {
                                     <li 
                                         key={i} 
                                         className="list-group-item list-group-item-action cursor-pointer"
-                                        onClick={() => {
-                                            setEditingTicket({ ...editingTicket, assigned_agent: user.username });
-                                            setUserSearchQuery(user.username);
+                                        onMouseDown={(e) => {
+                                            e.preventDefault(); // Prevent focus loss
+                                            const email = user.user_email || user.email || '';
+                                            console.log('Selected user:', user, 'Email:', email);
+                                            setEditingTicket(prev => ({ ...prev, assigned_agent: email }));
+                                            setUserSearchQuery(email);
                                             setShowUserDropdown(false);
                                         }}
                                         style={{ cursor: 'pointer' }}
