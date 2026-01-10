@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useGlobalFilters } from '../context/GlobalFilterContext.jsx';
-import { fetchAuditLogs } from '../services/api';
+import { fetchAuditLogs, fetchUsers } from '../services/api';
 
 const TICKET_TYPE_CATALOG = [
   { type: 'Hardware', categories: ['Laptop', 'Desktop', 'Server', 'Printer', 'Scanner', 'Monitor', 'Keyboard', 'Mouse', 'UPS'] },
@@ -58,9 +58,17 @@ function TicketList() {
     priority: 'Low'
   });
   const [editingTicket, setEditingTicket] = useState(null);
+  
+  // User Search State
+  const [allUsers, setAllUsers] = useState([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+
   const [confirmStatus, setConfirmStatus] = useState(null);
   const [confirmComment, setConfirmComment] = useState('');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const pageSize = 10;
 
   const ticketTypeOptions = useMemo(() => ['All', ...TICKET_TYPE_CATALOG.map((x) => x.type)], []);
@@ -83,6 +91,36 @@ function TicketList() {
     setShowStatusDropdown(false);
     setDrawerTab('DETAILS'); // Reset tab when ticket selection changes
   }, [selectedTicket]);
+
+  // Fetch Users when Edit Modal Opens
+  useEffect(() => {
+    if (editingTicket) {
+      setUserSearchQuery(editingTicket.assigned_agent || '');
+      const loadUsers = async () => {
+        try {
+          const data = await fetchUsers();
+          const users = Array.isArray(data) ? data : (data.users || []);
+          setAllUsers(users);
+        } catch (err) {
+          console.error("Failed to fetch users:", err);
+        }
+      };
+      loadUsers();
+    }
+  }, [editingTicket]);
+
+  // Filter Users
+  useEffect(() => {
+    if (userSearchQuery && showUserDropdown) {
+        const query = userSearchQuery.toLowerCase();
+        setFilteredUsers(allUsers.filter(u => 
+            (u.username || '').toLowerCase().includes(query) || 
+            (u.user_email || '').toLowerCase().includes(query)
+        ));
+    } else {
+        setFilteredUsers([]);
+    }
+  }, [userSearchQuery, allUsers, showUserDropdown]);
 
   // Fetch audit logs when tab is active
   useEffect(() => {
@@ -1186,7 +1224,7 @@ function TicketList() {
                   <button type="button" className="btn-close" onClick={() => setEditingTicket(null)}></button>
                 </div>
                 <div className="modal-body p-4">
-                  <form id="editTicketForm" onSubmit={(e) => {
+                  <form id="editTicketForm" onSubmit={async (e) => {
                       e.preventDefault();
                       const formData = new FormData(e.target);
                       const updated = {
@@ -1198,8 +1236,16 @@ function TicketList() {
                         type: editingTicket.type,
                         category: editingTicket.category
                       };
-                      updateTicket(updated);
-                      setEditingTicket(null);
+                      try {
+                        await updateTicket(updated);
+                        setEditingTicket(null);
+                        setToast({ show: true, message: 'Ticket updated successfully', type: 'success' });
+                        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+                      } catch (err) {
+                        console.error(err);
+                        setToast({ show: true, message: 'Failed to update ticket', type: 'danger' });
+                        setTimeout(() => setToast({ show: false, message: '', type: 'danger' }), 3000);
+                      }
                     }}>
                     
                     <div className="mb-4">
@@ -1284,6 +1330,48 @@ function TicketList() {
                                 <option value="Closed">Closed</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div className="mb-4 position-relative">
+                        <label className="form-label fw-bold text-secondary small text-uppercase d-flex align-items-center gap-2">
+                            <i className="bi bi-person-badge" style={{ color: 'rgba(26, 27, 103, 0.867)' }}></i> Assigned Agent
+                        </label>
+                        <input 
+                            type="text"
+                            className="form-control bg-light border-0 shadow-none" 
+                            placeholder="Search by name or email..."
+                            value={userSearchQuery}
+                            onChange={(e) => {
+                                setUserSearchQuery(e.target.value);
+                                setShowUserDropdown(true);
+                            }}
+                            onFocus={() => setShowUserDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowUserDropdown(false), 200)} // Delay to allow click
+                        />
+                        {showUserDropdown && userSearchQuery && filteredUsers.length > 0 && (
+                            <ul className="list-group position-absolute w-100 shadow-sm" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+                                {filteredUsers.map((user, i) => (
+                                    <li 
+                                        key={i} 
+                                        className="list-group-item list-group-item-action cursor-pointer"
+                                        onClick={() => {
+                                            setEditingTicket({ ...editingTicket, assigned_agent: user.username });
+                                            setUserSearchQuery(user.username);
+                                            setShowUserDropdown(false);
+                                        }}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <div className="d-flex justify-content-between align-items-center">
+                                            <span className="fw-medium">{user.username}</span>
+                                            <small className="text-muted">{user.user_email}</small>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        {!userSearchQuery && (
+                           <div className="form-text">Start typing to search for an agent.</div>
+                        )}
                     </div>
 
                     <div className="mb-4">
@@ -1443,6 +1531,20 @@ function TicketList() {
               </div>
             </div>
           </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: 1100 }}>
+          <div className={`toast show align-items-center text-white bg-${toast.type} border-0`} role="alert" aria-live="assertive" aria-atomic="true">
+            <div className="d-flex">
+              <div className="toast-body">
+                {toast.message}
+              </div>
+              <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={() => setToast({ ...toast, show: false })} aria-label="Close"></button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

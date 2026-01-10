@@ -112,6 +112,7 @@ export const GlobalFilterProvider = ({ children }) => {
         status: updatedTicket.status,
         category: updatedTicket.category,
         department: updatedTicket.department,
+        assigned_agent: updatedTicket.assigned_agent,
         // Add other fields if necessary
       };
 
